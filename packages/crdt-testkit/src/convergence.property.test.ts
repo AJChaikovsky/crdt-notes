@@ -1,6 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { propertyParameters } from "./property.js";
+import { opKey } from "./simulator.js";
 import { Rga, type Op } from "@crdt-notes/crdt";
 import {
   concurrentPair,
@@ -94,6 +95,28 @@ describe("convergence", () => {
     fc.assert(
       fc.property(scenario(), fc.boolean(), (s, causal) => {
         run(s, { causal, afterEdit });
+      }),
+      propertyParameters(),
+    );
+  });
+
+  it("P6: the visible document is every insert minus every deleted target", () => {
+    fc.assert(
+      fc.property(scenario(), fc.boolean(), (s, causal) => {
+        const sim = run(s, { causal });
+        const ops = sim.log().map(({ op }) => op);
+        // Deletes count by target: two deletes of the same character remove it once.
+        const deleted = new Set(
+          ops.flatMap((op) => (op.kind === "delete" ? [opKey(op.target)] : [])),
+        );
+        const expected = ops
+          .flatMap((op) => (op.kind === "insert" ? [opKey(op.id)] : []))
+          .filter((key) => !deleted.has(key))
+          .sort();
+        for (let r = 0; r < sim.size; r += 1) {
+          // Compared as a sorted list, so a character shown twice fails too.
+          expect(sim.rga(r).visibleIds().map(opKey).sort()).toEqual(expected);
+        }
       }),
       propertyParameters(),
     );
