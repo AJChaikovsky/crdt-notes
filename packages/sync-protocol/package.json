@@ -1,0 +1,11 @@
+{
+  "name": "@crdt-notes/sync-protocol",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Wire types shared by the server and the web app.",
+  "type": "module",
+  "exports": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  }
+}
