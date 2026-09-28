@@ -35,3 +35,21 @@ land on `main` unnoticed. The workflow lives in `.github/workflows/ci.yml`.
 wrong for this repo; here it also bans CRDT libraries, `any` and non-null `!`
 assertions inside `packages/crdt`. Prettier rewrites layout so diffs only show real
 changes.
+
+## CRDT spine (Phase 1)
+
+**Replica.** One copy of a document being edited: a device, or a tab. Each has a
+**replica ID**, a string that is unique to it (a UUID, Universally Unique Identifier,
+in the app). Without it, two replicas could create the same character ID.
+
+**Character ID / op ID.** The pair `(counter, replica)` that names one inserted
+character forever. Array indices can't do this: a concurrent insert or delete earlier in
+the text shifts them, so "insert after index 3" lands in different places on different
+replicas.
+
+**Lamport clock.** A counter each replica keeps. It adds 1 for every local op, and on
+receiving a remote op it jumps to `max(own, theirs)`. That guarantees: if B's author had
+seen A, B's counter is bigger than A's. The reverse does not hold, since a smaller
+counter can also belong to a concurrent op, which is why ties need a rule. Without the
+jump, something typed after seeing another op could get a smaller counter and be sorted
+as if it came first. See ADR-0002.
