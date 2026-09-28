@@ -67,9 +67,17 @@ never moves one, so R's characters keep the relative order R saw. It also missed
 bug it was meant to catch: without `observe`, a new character can land on the wrong side
 of a remote one, and filtering out the remote one hides that.
 
-**P6 — Conservation.** The multiset (a set allowing duplicates — you're comparing counts,
-since a document really can contain forty `e`s) of visible characters equals (all inserted) minus
-(all deleted). No characters invented, none lost.
+**P6 — Conservation.** Once everything is delivered, each replica's visible character IDs
+are exactly the inserted IDs minus the IDs that some delete targeted. No characters
+invented, none lost, none shown twice. Deletes count by distinct target, since two
+concurrent deletes of the same character remove it once.
+
+*How it's tested:* after the same scenarios as P1 (causal or not), compare each replica's
+`visibleIds()` as a sorted list against the expected IDs computed from the op log.
+
+*Changed 2026-09-28 (AJ's pick).* The first version compared the multiset of visible
+characters (counts of each letter). With a five-letter alphabet repeated letters are
+common, and a count can't tell which "e" was deleted, so IDs are compared instead.
 
 **P7 — Non-interleaving.** If replica R inserted characters c₁…cₙ as a contiguous run
 with no concurrent op from R in between, then c₁…cₙ appear contiguously in the merged
@@ -120,3 +128,5 @@ runs each).
 | 2026-09-28 | P4 | Held ops are never retried | 1, 1, 3 runs |
 | 2026-09-28 | P4 | Only one held op is released per arrival, so chains stay stuck | 2, 2, 3 runs |
 | 2026-09-28 | P5 | `apply` doesn't call `clock.observe` | 27, 20, 51 runs; P1 to P4 all still pass. Shrinks to: A types "a" twice at index 0, B receives only the second (delivered out of order), then types "e" at index 0 and sees "ae" |
+| 2026-09-28 | P6 | A delete tombstones the item after its target | 1, 1, 3 runs. Every other property fails too: a loud bug, but P6 names it directly ("this ID should be gone") |
+| 2026-09-28 | P6 | The duplicate check compares counters only, so a concurrent insert with the same counter is dropped | 1, 2, 1 runs; P1 to P5 fail as well |
