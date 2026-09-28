@@ -127,4 +127,30 @@ describe("Rga visibleIds", () => {
     alice.delete(at(ops, 1).id);
     expect(alice.visibleIds()).toEqual([at(ops, 0).id, at(ops, 2).id]);
   });
+
+  it("items() lists tombstones too, in the same place on every replica", () => {
+    const alice = new Rga("A");
+    const x = alice.insert(null, "x");
+    const bob = new Rga("B");
+    bob.apply(x);
+    const del = bob.delete(x.id);
+    const y = alice.insert(x.id, "y"); // typed after "x" before Alice saw the delete
+    alice.apply(del);
+    bob.apply(y);
+    expect(alice.items()).toEqual([
+      { id: x.id, char: "x", deleted: true },
+      { id: y.id, char: "y", deleted: false },
+    ]);
+    expect(bob.items()).toEqual(alice.items());
+  });
+
+  it("items() returns copies", () => {
+    const alice = new Rga("A");
+    const x = alice.insert(null, "x");
+    const [item] = alice.items();
+    if (item === undefined) throw new Error("expected one item");
+    (item as { deleted: boolean }).deleted = true;
+    expect(alice.text()).toBe("x");
+    expect(x.char).toBe("x");
+  });
 });
