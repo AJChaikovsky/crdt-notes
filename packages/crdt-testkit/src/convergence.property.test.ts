@@ -1,7 +1,14 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { propertyParameters } from "./property.js";
-import { run, scenario, withoutDuplicates } from "./scenario.js";
+import { Rga, type Op } from "@crdt-notes/crdt";
+import {
+  concurrentPair,
+  run,
+  runSteps,
+  scenario,
+  withoutDuplicates,
+} from "./scenario.js";
 
 // Properties from docs/testing-strategy.md, over random scenarios with causally valid
 // delivery.
@@ -25,6 +32,32 @@ describe("convergence", () => {
           expect(run(s).texts()).toEqual(run(withoutDuplicates(s)).texts());
         },
       ),
+      propertyParameters(),
+    );
+  });
+
+  it("P3: two concurrent ops applied in either order leave the same items", () => {
+    fc.assert(
+      fc.property(concurrentPair(), ({ scenario, first, second }) => {
+        const sim = runSteps(scenario);
+        const history = sim.log().map(({ op }) => op);
+        const r1 = first.replica % sim.size;
+        const r2 = (r1 + 1 + (second.offset % (sim.size - 1))) % sim.size;
+        // Neither op has been delivered anywhere, so neither author saw the other's.
+        const a = sim.edit(r1, first.edit);
+        const b = sim.edit(r2, second.edit);
+        if (a === null || b === null) return; // a delete on an empty document
+
+        // Two fresh copies that have everything both authors had seen, then a and b in
+        // opposite orders. Tombstones count: same text with a tombstone in a different
+        // place is still a bug (see Rga.items).
+        const replay = (last: readonly Op[]): Rga => {
+          const rga = new Rga("Z");
+          for (const op of [...history, ...last]) rga.apply(op);
+          return rga;
+        };
+        expect(replay([b, a]).items()).toEqual(replay([a, b]).items());
+      }),
       propertyParameters(),
     );
   });

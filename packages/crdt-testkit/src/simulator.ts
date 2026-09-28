@@ -127,6 +127,14 @@ export class Simulator {
     return again.op;
   }
 
+  /**
+   * Every op ever made, in the order it was made. That order is causally valid: an op's
+   * dependencies were all made before it, so a fresh replica can apply the log in order.
+   */
+  log(): SentOp[] {
+    return [...this.#log];
+  }
+
   /** Every delivery not yet made, ready or not. */
   pending(): Delivery[] {
     return [...this.#pending];
