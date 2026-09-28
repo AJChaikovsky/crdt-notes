@@ -147,7 +147,7 @@ integrate(op)
 ```
 if op.id already present: return                          // P2
 add the node; insert op.id into parent.leftKids or parent.rightKids,
-    keeping the list sorted by [DECIDE: sibling order]
+    keeping the list sorted by compareIds, smallest first (Fugue)
 ```
 
 Ready (P4) when `parent` is ROOT or present. Unlike RGA, no skip loop and no reliance on
@@ -161,7 +161,7 @@ text()   = chars of walk(ROOT) that are not deleted
 items()  = walk(ROOT), tombstones included
 ```
 
-### [DECIDE: sibling order]
+### Sibling order: Fugue, chosen by AJ 2026-09-28
 
 - **Fugue:** siblings on each side sorted by ID, smallest first.
 - **FugueMax:** left siblings as Fugue; right siblings sorted by their right origin
@@ -170,8 +170,9 @@ items()  = walk(ROOT), tombstones included
 The paper proves only **FugueMax** maximally non-interleaving (Theorem 9). Plain Fugue is
 proved forward non-interleaving, and can interleave backward in rare cases that need
 right siblings with different right origins (the paper's Figure 7). Section 3 above and
-the ADR-0001 table currently say Fugue itself is maximal; that is corrected once this is
-decided.
+the ADR-0001 table currently say Fugue itself is maximal; that needs correcting. AJ chose
+plain Fugue first: build the simpler rule, let P7 look for the gap, then move to FugueMax
+if it finds one.
 
 ### Worked example: backward runs no longer interleave
 
