@@ -9,6 +9,7 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
+    "@crdt-notes/crdt": "workspace:*",
     "fast-check": "^4.10.2"
   }
 }

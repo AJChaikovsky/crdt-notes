@@ -119,3 +119,12 @@ describe("Rga delete", () => {
     expect(() => new Rga("B").apply(del)).toThrow(/not been applied/);
   });
 });
+
+describe("Rga visibleIds", () => {
+  it("lists visible IDs in document order, skipping tombstones", () => {
+    const alice = new Rga("A");
+    const ops = type(alice, "abc");
+    alice.delete(at(ops, 1).id);
+    expect(alice.visibleIds()).toEqual([at(ops, 0).id, at(ops, 2).id]);
+  });
+});

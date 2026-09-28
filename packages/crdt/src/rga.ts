@@ -97,6 +97,15 @@ export class Rga {
       .join("");
   }
 
+  /**
+   * The IDs of the visible characters, in document order: `visibleIds()[i]` names the
+   * character at index `i` of `text()`. Lets an editor turn a cursor position into the
+   * `origin` or `target` an op needs.
+   */
+  visibleIds(): Id[] {
+    return this.#items.filter((item) => !item.deleted).map((item) => item.id);
+  }
+
   #integrate(op: InsertOp): void {
     // An insert delivered twice (say, replayed by the sync server) is a no-op.
     if (this.#has(op.id)) return;
