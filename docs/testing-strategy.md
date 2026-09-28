@@ -29,6 +29,12 @@ the same state, with no rollback and no conflict dialog — and it's the whole b
 **P2 — Idempotence.** Delivering the same op twice leaves state unchanged. You will
 need this when the sync server replays on reconnect.
 
+*How it's tested:* scenarios include `redeliver` steps that send a replica an op it has
+already applied (its own ops included, as a server echo), mixed in with edits and
+deliveries. Each replica's final text must equal the same scenario run with every
+`redeliver` step removed. Because duplicates are part of every scenario, P1 runs over
+them too.
+
 **P3 — Commutativity.** Two concurrent ops applied in either order give the same state.
 
 **P4 — Causal readiness.** An op whose dependencies haven't arrived is buffered, not
@@ -84,3 +90,5 @@ runs each).
 | 2026-09-28 | P1 | Sibling tie-break compares counters only, ignoring replica ID | 1, 1, 1 runs; shrinks to two replicas each inserting one char at index 0 |
 | 2026-09-28 | P1 | Skip loop stops at tombstones | 5, 16, 7 runs |
 | 2026-09-28 | P1 | `apply` doesn't call `clock.observe` | **not caught** in 10,000 runs: replicas still converge, just on an order nobody typed. P1 can't see it; P5 (intention preservation) should |
+| 2026-09-28 | P2 | `#integrate` drops the `#has(op.id)` duplicate guard | 1, 1, 1 runs; shrinks to one insert echoed back to its author. P1 also fails now that scenarios contain duplicates |
+| 2026-09-28 | P2 | A delete toggles `deleted` instead of setting it | 3, 3, 1 runs; shrinks to insert, delete, then the delete echoed back. P1 also fails |
