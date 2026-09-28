@@ -26,6 +26,13 @@ way. Sibling order depends on it, so a disagreement here means replicas diverge.
    `localeCompare` depends on the machine's locale, so two replicas could order the same
    pair differently and diverge. `id.test.ts` has a test that fails if this changes.
 
+5. **Every op has its own ID, deletes included.** A delete is
+   `{ kind: "delete", id, target }`; its `id` comes from the clock like an insert's.
+   Chosen by AJ so the Phase 5 vector-clock handshake can tell a reconnecting client
+   which deletes it missed. The alternative, a delete that only names its target, would
+   need the op format changed later. Ops carry a `kind` field (`"insert"` or `"delete"`)
+   so one `apply` can take either.
+
 ## Rejected
 
 - Tie-break on wall-clock time: clocks disagree between devices, and two ops can share a
