@@ -108,7 +108,10 @@ section is the Fugue design, written as pseudocode for review before any TypeScr
 Checked against Weidner and Kleppmann, *The Art of the Fugue*, Algorithm 1
 (arxiv.org/abs/2305.00583).
 
-**PROPOSED, not yet agreed.** Decision points are marked [DECIDE].
+**PROPOSED, waiting on AJ's review of the pseudocode.** Decided so far (AJ, 2026-09-28):
+plain Fugue sibling order; a new `Fugue` class side by side with `Rga`, same public
+methods, with every property run against both (P7 in full for Fugue, forward-only for
+RGA).
 
 ### State
 
