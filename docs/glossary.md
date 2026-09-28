@@ -66,3 +66,9 @@ bigger ID skips a newer sibling together with everything typed after it.
 **Integrate.** Applying an insert to a replica's state: start just after the origin,
 skip items with bigger IDs, insert at the first smaller one. Local and remote inserts use
 the same code, which is what makes replicas agree.
+
+**Tombstone.** A deleted character that stays in the array, marked `deleted`, instead
+of being removed. It is hidden from the visible text but keeps its place. Without it, an
+insert typed concurrently right after that character would arrive with an origin that no
+longer exists and have nowhere to go. The cost is that tombstones accumulate; ADR-0003
+will decide whether and when to collect them.
