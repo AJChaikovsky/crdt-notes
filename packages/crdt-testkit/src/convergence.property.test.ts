@@ -4,6 +4,7 @@ import { propertyParameters } from "./property.js";
 import { Rga, type Op } from "@crdt-notes/crdt";
 import {
   concurrentPair,
+  type EditCheck,
   run,
   runSteps,
   scenario,
@@ -76,6 +77,23 @@ describe("convergence", () => {
         expect(sim.rga(0).items().length).toBe(
           sim.log().filter(({ op }) => op.kind === "insert").length,
         );
+      }),
+      propertyParameters(),
+    );
+  });
+
+  it("P5: every local edit lands at the author's cursor", () => {
+    // What the author's screen must show after the edit, from the text before it.
+    const expected = ({ before, edit }: EditCheck): string =>
+      edit.kind === "insert"
+        ? before.slice(0, edit.index) + edit.char + before.slice(edit.index)
+        : before.slice(0, edit.index) + before.slice(edit.index + 1);
+    const afterEdit = (check: EditCheck): void => {
+      expect(check.after).toBe(expected(check));
+    };
+    fc.assert(
+      fc.property(scenario(), fc.boolean(), (s, causal) => {
+        run(s, { causal, afterEdit });
       }),
       propertyParameters(),
     );
