@@ -103,11 +103,90 @@ test that only types left-to-right passes on RGA and tells you nothing.
 
 ## 4. The algorithm this project implements
 
-TODO — after ADR-0001. Include: the integration rule in pseudocode, a worked example of
-two concurrent inserts stepping through it, and the exact comparison function used for
-tie-breaking, spelled out, because that's where the bugs live.
+Phases 1 and 2 built RGA (ADR-0001). Phase 3 replaces its ordering with Fugue. This
+section is the Fugue design, written as pseudocode for review before any TypeScript.
+Checked against Weidner and Kleppmann, *The Art of the Fugue*, Algorithm 1
+(arxiv.org/abs/2305.00583).
 
----
+**PROPOSED, not yet agreed.** Decision points are marked [DECIDE].
+
+### State
+
+```
+Node   = { id, char, deleted, parent: Id | ROOT, side: LEFT | RIGHT,
+           leftKids: Id[], rightKids: Id[] }      // each list kept sorted
+ROOT   = a sentinel node standing for the start of the document
+```
+
+### The op
+
+```
+InsertOp = { kind: "insert", id, char, parent: Id | null, side: "left" | "right" }
+```
+
+The author decides `parent` and `side` when typing, and the op carries them, so a
+receiver never recomputes them (as in the paper). This replaces RGA's `origin`, which
+changes the op format in ADR-0002 item 5. `DeleteOp` is unchanged.
+
+### Local insert at cursor index i
+
+```
+L = the visible character at index i - 1, or ROOT when i = 0    // as ADR-0002 item 6
+if L has no right children:
+    parent, side = L, RIGHT              // forward typing: chain to the right
+else:
+    R = the node right after L in the full walk, TOMBSTONES INCLUDED
+    parent, side = R, LEFT               // R is leftmost in L's right subtree, so
+                                         // it has no left children yet
+op = { id: clock.tick(), char, parent, side }
+integrate(op)
+```
+
+### Integrate (local and remote)
+
+```
+if op.id already present: return                          // P2
+add the node; insert op.id into parent.leftKids or parent.rightKids,
+    keeping the list sorted by [DECIDE: sibling order]
+```
+
+Ready (P4) when `parent` is ROOT or present. Unlike RGA, no skip loop and no reliance on
+Lamport order: siblings are placed by a sort, so arrival order cannot matter.
+
+### Reading the document
+
+```
+walk(node): walk each of node.leftKids; visit node; walk each of node.rightKids
+text()   = chars of walk(ROOT) that are not deleted
+items()  = walk(ROOT), tombstones included
+```
+
+### [DECIDE: sibling order]
+
+- **Fugue:** siblings on each side sorted by ID, smallest first.
+- **FugueMax:** left siblings as Fugue; right siblings sorted by their right origin
+  (descending), ties by ID. Needs the op to also carry `rightOrigin`.
+
+The paper proves only **FugueMax** maximally non-interleaving (Theorem 9). Plain Fugue is
+proved forward non-interleaving, and can interleave backward in rare cases that need
+right siblings with different right origins (the paper's Figure 7). Section 3 above and
+the ADR-0001 table currently say Fugue itself is maximal; that is corrected once this is
+decided.
+
+### Worked example: backward runs no longer interleave
+
+Alice types `c`, then `b` at 0, then `a` at 0. Bob concurrently types `z`, `y`, `x` the
+same way.
+
+```
+ROOT
+├─ right: c(1,A)            ├─ right: z(1,B)
+│   └─ left: b(2,A)         │   └─ left: y(2,B)
+│       └─ left: a(3,A)     │       └─ left: x(3,B)
+```
+
+`c` and `z` are ROOT's right children; the sibling order decides which run comes first,
+but each run is one subtree, so the walk gives `abcxyz` or `xyzabc`, never `axbycz`.
 
 ## 5. Tombstones and garbage collection
 
