@@ -91,12 +91,17 @@ export function withoutDuplicates(scenario: Scenario): Scenario {
   return { ...scenario, steps: scenario.steps.filter((s) => s.kind !== "redeliver") };
 }
 
+/** `causal: false` lets the network deliver ops before their dependencies (for P4). */
+export interface RunOptions {
+  readonly causal?: boolean;
+}
+
 /**
  * Runs the steps of `scenario` without draining, so replicas may still disagree and ops
  * may still be in flight.
  */
-export function runSteps(scenario: Scenario): Simulator {
-  const sim = new Simulator(REPLICA_IDS.slice(0, scenario.replicas));
+export function runSteps(scenario: Scenario, options: RunOptions = {}): Simulator {
+  const sim = new Simulator(REPLICA_IDS.slice(0, scenario.replicas), options);
   for (const s of scenario.steps) {
     if (s.kind === "edit") {
       sim.edit(s.replica % sim.size, s.edit);
@@ -112,8 +117,8 @@ export function runSteps(scenario: Scenario): Simulator {
 }
 
 /** Runs `scenario` to the end, delivering everything, and returns the simulator. */
-export function run(scenario: Scenario): Simulator {
-  const sim = runSteps(scenario);
+export function run(scenario: Scenario, options: RunOptions = {}): Simulator {
+  const sim = runSteps(scenario, options);
   let i = 0;
   sim.deliverAll(() => scenario.drain[i++ % Math.max(scenario.drain.length, 1)] ?? 0);
   return sim;

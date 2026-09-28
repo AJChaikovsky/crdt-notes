@@ -7,6 +7,7 @@ export {
   scenario,
   withoutDuplicates,
   type ConcurrentPair,
+  type RunOptions,
   type Scenario,
   type Step,
 } from "./scenario.js";

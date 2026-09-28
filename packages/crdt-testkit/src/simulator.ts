@@ -32,6 +32,9 @@ interface Replica {
  * order: an op reaches a replica only once every op its author had applied has been
  * applied there too. Dependencies are tracked as explicit sets of op keys (see
  * `docs/glossary.md`), which is simple enough to trust as an oracle.
+ *
+ * With `{ causal: false }` the network may deliver any pending op at any time, ignoring
+ * dependencies. That is how P4 checks that replicas hold early ops back.
  */
 export class Simulator {
   readonly #replicas: Replica[];
@@ -39,8 +42,11 @@ export class Simulator {
   /** Every op ever made, in the order it was made, so it can be sent again. */
   readonly #log: SentOp[] = [];
 
-  constructor(replicaIds: readonly ReplicaId[]) {
+  readonly #causal: boolean;
+
+  constructor(replicaIds: readonly ReplicaId[], options: { causal?: boolean } = {}) {
     this.#replicas = replicaIds.map((id) => ({ rga: new Rga(id), applied: new Set() }));
+    this.#causal = options.causal ?? true;
   }
 
   get size(): number {
@@ -77,8 +83,12 @@ export class Simulator {
     return op;
   }
 
-  /** Deliveries whose dependencies are all applied at their destination. */
+  /**
+   * Deliveries whose dependencies are all applied at their destination, or every pending
+   * delivery when the network isn't causal.
+   */
   deliverable(): Delivery[] {
+    if (!this.#causal) return [...this.#pending];
     return this.#pending.filter(({ to, sent }) => {
       const applied = this.#replica(to).applied;
       for (const dep of sent.deps) if (!applied.has(dep)) return false;
@@ -146,6 +156,11 @@ export class Simulator {
 
   text(replica: number): string {
     return this.#replica(replica).rga.text();
+  }
+
+  /** Replica `replica`'s document, for checks beyond its text. */
+  rga(replica: number): Rga {
+    return this.#replica(replica).rga;
   }
 
   texts(): string[] {
