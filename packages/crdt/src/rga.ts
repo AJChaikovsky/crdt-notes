@@ -98,9 +98,12 @@ export class Rga {
   }
 
   #integrate(op: InsertOp): void {
+    // An insert delivered twice (say, replayed by the sync server) is a no-op.
+    if (this.#has(op.id)) return;
     let i = op.origin === null ? 0 : this.#indexOf(op.origin) + 1;
-    // Skip every item with a bigger ID, tombstones included. Those are newer siblings of `op` plus everything
-    // typed after them, which the Lamport clock guarantees has an even bigger ID.
+    // Skip every item with a bigger ID, tombstones included. Those are newer siblings of
+    // `op` plus everything typed after them, which the Lamport clock guarantees has an
+    // even bigger ID.
     for (let item = this.#items[i]; item !== undefined; item = this.#items[i]) {
       if (compareIds(item.id, op.id) < 0) break;
       i += 1;
@@ -113,6 +116,10 @@ export class Rga {
     // Deleting an already-deleted item changes nothing, so repeats and concurrent
     // deletes of the same character agree.
     if (item !== undefined) item.deleted = true;
+  }
+
+  #has(id: Id): boolean {
+    return this.#items.some((item) => compareIds(item.id, id) === 0);
   }
 
   #indexOf(id: Id): number {
