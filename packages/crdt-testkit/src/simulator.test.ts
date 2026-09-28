@@ -61,4 +61,16 @@ describe("Simulator", () => {
     sim.deliverAll();
     expect(sim.texts()).toEqual(["", ""]);
   });
+
+  it("redelivers only ops a replica already has, including its own", () => {
+    const sim = new Simulator(["A", "B"]);
+    expect(sim.redeliver(0, 0)).toBeNull();
+    const a = sim.edit(0, { kind: "insert", index: 0, char: "a" });
+    expect(sim.redeliver(1, 0)).toBeNull(); // B hasn't received "a" yet
+    expect(sim.redeliver(0, 7)).toBe(a); // A's own op, echoed back
+    expect(sim.texts()).toEqual(["a", ""]);
+    sim.deliverAll();
+    expect(sim.redeliver(1, 0)).toBe(a);
+    expect(sim.texts()).toEqual(["a", "a"]);
+  });
 });

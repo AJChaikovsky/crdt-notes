@@ -36,6 +36,8 @@ interface Replica {
 export class Simulator {
   readonly #replicas: Replica[];
   readonly #pending: Delivery[] = [];
+  /** Every op ever made, in the order it was made, so it can be sent again. */
+  readonly #log: SentOp[] = [];
 
   constructor(replicaIds: readonly ReplicaId[]) {
     this.#replicas = replicaIds.map((id) => ({ rga: new Rga(id), applied: new Set() }));
@@ -68,6 +70,7 @@ export class Simulator {
       op = replica.rga.delete(target);
     }
     replica.applied.add(opKey(op.id));
+    this.#log.push({ op, deps });
     for (let to = 0; to < this.#replicas.length; to += 1) {
       if (to !== from) this.#pending.push({ to, sent: { op, deps } });
     }
@@ -107,6 +110,21 @@ export class Simulator {
     }
     if (this.#pending.length > 0)
       throw new Error("deliveries stuck: dependency never sent");
+  }
+
+  /**
+   * Sends replica `to` an op it has already applied again, the way a sync server might
+   * replay ops after a reconnect. Its own ops count too: a server can echo them back.
+   * `pick` chooses which one (wrapped into range). Returns the op, or `null` if the
+   * replica hasn't applied anything yet. A duplicate must change nothing (P2).
+   */
+  redeliver(to: number, pick: number): Op | null {
+    const replica = this.#replica(to);
+    const seen = this.#log.filter(({ op }) => replica.applied.has(opKey(op.id)));
+    const again = seen[pick % Math.max(seen.length, 1)];
+    if (again === undefined) return null;
+    replica.rga.apply(again.op);
+    return again.op;
   }
 
   /** Every delivery not yet made, ready or not. */

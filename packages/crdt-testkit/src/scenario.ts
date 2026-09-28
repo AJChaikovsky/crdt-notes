@@ -1,10 +1,14 @@
 import fc from "fast-check";
 import { Simulator, type Edit } from "./simulator.js";
 
-/** One step of a scenario: a local edit, or delivering one ready op. */
+/**
+ * One step of a scenario: a local edit, delivering one ready op, or sending a replica an
+ * op it already has.
+ */
 export type Step =
   | { readonly kind: "edit"; readonly replica: number; readonly edit: Edit }
-  | { readonly kind: "deliver"; readonly pick: number };
+  | { readonly kind: "deliver"; readonly pick: number }
+  | { readonly kind: "redeliver"; readonly replica: number; readonly pick: number };
 
 /**
  * A random run of the simulator, as plain data. Replica numbers, indices and picks are
@@ -40,9 +44,32 @@ const edit: fc.Arbitrary<Edit> = fc.oneof(
   },
 );
 
+// Duplicates are rarer than edits and deliveries, but mixed in with them, so a duplicate
+// can arrive after later ops have changed the document around it.
 const step: fc.Arbitrary<Step> = fc.oneof(
-  fc.record({ kind: fc.constant("edit" as const), replica: fc.nat({ max: 4 }), edit }),
-  fc.record({ kind: fc.constant("deliver" as const), pick: fc.nat({ max: 50 }) }),
+  {
+    weight: 2,
+    arbitrary: fc.record({
+      kind: fc.constant("edit" as const),
+      replica: fc.nat({ max: 4 }),
+      edit,
+    }),
+  },
+  {
+    weight: 2,
+    arbitrary: fc.record({
+      kind: fc.constant("deliver" as const),
+      pick: fc.nat({ max: 50 }),
+    }),
+  },
+  {
+    weight: 1,
+    arbitrary: fc.record({
+      kind: fc.constant("redeliver" as const),
+      replica: fc.nat({ max: 4 }),
+      pick: fc.nat({ max: 50 }),
+    }),
+  },
 );
 
 /** Scenarios with 2 to 5 replicas and up to `maxSteps` steps. */
@@ -56,12 +83,22 @@ export function scenario(maxSteps = 60): fc.Arbitrary<Scenario> {
   });
 }
 
+/**
+ * The same scenario with every duplicate removed. Duplicates don't touch the network
+ * queue, so the remaining steps pick exactly the same deliveries as before.
+ */
+export function withoutDuplicates(scenario: Scenario): Scenario {
+  return { ...scenario, steps: scenario.steps.filter((s) => s.kind !== "redeliver") };
+}
+
 /** Runs `scenario` to the end, delivering everything, and returns the simulator. */
 export function run(scenario: Scenario): Simulator {
   const sim = new Simulator(REPLICA_IDS.slice(0, scenario.replicas));
   for (const s of scenario.steps) {
     if (s.kind === "edit") {
       sim.edit(s.replica % sim.size, s.edit);
+    } else if (s.kind === "redeliver") {
+      sim.redeliver(s.replica % sim.size, s.pick);
     } else {
       const ready = sim.deliverable();
       const next = ready[s.pick % Math.max(ready.length, 1)];
