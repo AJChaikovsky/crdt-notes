@@ -46,6 +46,11 @@ the other, and compare `Rga.items()` (every item, tombstones included), not just
 applied and not dropped. Generate deliberately out-of-order deliveries and assert the
 buffer drains correctly once the gap fills.
 
+*How it's tested:* the simulator's `{ causal: false }` mode delivers any pending op at
+any time. After the same scenarios as P1, every replica must have nothing held
+(`pendingCount` 0), identical `items()`, and every insert ever made. About half of
+scenarios end their steps with ops still held, so the buffer is exercised. See ADR-0003.
+
 **P5 — Intention preservation.** Take the merged document and delete every character
 that didn't come from replica R. What's left must be exactly R's characters in the order
 R inserted them. If this fails, you've reordered someone's typing.
@@ -99,3 +104,6 @@ runs each).
 | 2026-09-28 | P2 | A delete toggles `deleted` instead of setting it | 3, 3, 1 runs; shrinks to insert, delete, then the delete echoed back. P1 also fails |
 | 2026-09-28 | P3 | Skip loop stops at tombstones | 925, 123, 78 runs (P1 is faster at 5, 16, 7). Shrinks to a pure hidden-state failure: a delete and a concurrent insert of the same char at the start leave text "a" on both copies but the tombstone on different sides |
 | 2026-09-28 | P3 | Sibling tie-break compares counters only | 3, 4, 13 runs; shrinks to two replicas each inserting "a" at index 0 |
+| 2026-09-28 | P4 | Early ops are dropped instead of held | 1, 1, 3 runs |
+| 2026-09-28 | P4 | Held ops are never retried | 1, 1, 3 runs |
+| 2026-09-28 | P4 | Only one held op is released per arrival, so chains stay stuck | 2, 2, 3 runs |

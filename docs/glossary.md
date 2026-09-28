@@ -100,3 +100,9 @@ Replicas receive concurrent ops in different orders, so without it they drift ap
 "Same state" means the whole item list, tombstones included, not just the visible text:
 two replicas can show identical text with a tombstone in different places, and diverge
 only when someone later types after that tombstone. P3 tests it with `Rga.items()`.
+
+**Held op (causal readiness).** A remote op that arrived before its origin or target,
+kept in a replica's pending list and applied as soon as that op arrives. Dropping it
+would lose an edit for good; applying it early is impossible, because there is nowhere
+to put it. RGA only needs the origin or target present, not every op the author had
+seen. P4 tests it; ADR-0003 has the design.

@@ -61,4 +61,23 @@ describe("convergence", () => {
       propertyParameters(),
     );
   });
+
+  it("P4: ops that arrive before their dependencies are held, then applied, never lost", () => {
+    fc.assert(
+      fc.property(scenario(), (s) => {
+        // Any delivery order at all, not just causally valid ones.
+        const sim = run(s, { causal: false });
+        for (let r = 0; r < sim.size; r += 1) {
+          expect(sim.rga(r).pendingCount).toBe(0);
+          expect(sim.rga(r).items()).toEqual(sim.rga(0).items());
+        }
+        // Nothing dropped: every insert ever made is in the document. A dropped delete
+        // would leave its author's items different from everyone else's, caught above.
+        expect(sim.rga(0).items().length).toBe(
+          sim.log().filter(({ op }) => op.kind === "insert").length,
+        );
+      }),
+      propertyParameters(),
+    );
+  });
 });

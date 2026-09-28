@@ -65,6 +65,8 @@ interface Item {
 export class Rga {
   readonly #clock: Clock;
   readonly #items: Item[] = [];
+  /** Remote ops that arrived before their origin or target, in arrival order (P4). */
+  readonly #pending: Op[] = [];
 
   constructor(replica: ReplicaId) {
     this.#clock = new Clock(replica);
@@ -85,15 +87,44 @@ export class Rga {
   }
 
   /**
-   * Applies an op from another replica.
+   * Applies an op from another replica, in any order. An op whose origin (for an insert)
+   * or target (for a delete) hasn't arrived yet is held back and applied as soon as it
+   * has, so the network doesn't have to deliver ops causally (ADR-0003). The clock
+   * observes the op on arrival, not when it is finally applied.
    *
-   * @throws if the op's origin or target hasn't arrived yet. Buffering such ops until it
-   * arrives (P4, causal readiness) is a later step.
+   * @example Bob receives Alice's delete of "x" before the insert of "x":
+   * ```ts
+   * const alice = new Rga("A");
+   * const x = alice.insert(null, "x");
+   * const del = alice.delete(x.id);
+   * const bob = new Rga("B");
+   * bob.apply(del);    // target missing: held back
+   * bob.pendingCount;  // 1
+   * bob.apply(x);      // inserts "x", then applies the held delete
+   * bob.text();        // ""
+   * bob.pendingCount;  // 0
+   * ```
    */
   apply(op: Op): void {
     this.#clock.observe(op.id);
-    if (op.kind === "insert") this.#integrate(op);
-    else this.#tombstone(op);
+    if (!this.#ready(op)) {
+      // A duplicate of an op that is already waiting changes nothing (P2).
+      if (!this.#pending.some((p) => compareIds(p.id, op.id) === 0))
+        this.#pending.push(op);
+      return;
+    }
+    this.#applyReady(op);
+    // Applying one op can make held ones ready, and those can unblock more.
+    for (let i = this.#pending.findIndex((p) => this.#ready(p)); i !== -1;) {
+      const [next] = this.#pending.splice(i, 1);
+      if (next !== undefined) this.#applyReady(next);
+      i = this.#pending.findIndex((p) => this.#ready(p));
+    }
+  }
+
+  /** How many remote ops are held back waiting for their origin or target. */
+  get pendingCount(): number {
+    return this.#pending.length;
   }
 
   /** The visible document. */
@@ -156,6 +187,17 @@ export class Rga {
     // Deleting an already-deleted item changes nothing, so repeats and concurrent
     // deletes of the same character agree.
     if (item !== undefined) item.deleted = true;
+  }
+
+  /** Whether the op's origin or target is here, so it can be applied now. */
+  #ready(op: Op): boolean {
+    if (op.kind === "delete") return this.#has(op.target);
+    return op.origin === null || this.#has(op.origin);
+  }
+
+  #applyReady(op: Op): void {
+    if (op.kind === "insert") this.#integrate(op);
+    else this.#tombstone(op);
   }
 
   #has(id: Id): boolean {
