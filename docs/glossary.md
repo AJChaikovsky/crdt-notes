@@ -106,3 +106,8 @@ kept in a replica's pending list and applied as soon as that op arrives. Droppin
 would lose an edit for good; applying it early is impossible, because there is nowhere
 to put it. RGA only needs the origin or target present, not every op the author had
 seen. P4 tests it; ADR-0003 has the design.
+
+**Intention preservation.** A user's edit takes effect where they made it: a character
+typed at the cursor appears at the cursor, on their own screen, whatever they have
+received from others. Convergence alone doesn't guarantee it; replicas can all agree on
+a document where a keystroke landed somewhere else. P5 tests it.
