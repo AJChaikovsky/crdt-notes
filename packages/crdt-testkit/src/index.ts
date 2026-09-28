@@ -12,3 +12,4 @@ export {
   type Scenario,
   type Step,
 } from "./scenario.js";
+export { concurrentRuns, typeRuns, type ConcurrentRuns, type Run } from "./runs.js";

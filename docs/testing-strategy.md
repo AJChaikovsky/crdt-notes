@@ -85,6 +85,17 @@ result. Generate runs in *both* directions — left-to-right typing and right-to
 insertion at a fixed index. The second one is where algorithms die. See
 `docs/crdt-design.md#the-interleaving-problem`.
 
+*How it's tested:* a dedicated generator builds a shared starting document, then 2 to 4
+replicas each type one run of 2 to 5 characters, forward or backward, at a chosen index,
+all concurrently. After delivery, every run's character IDs must appear as one unbroken
+stretch, in the run's own reading order, on every replica.
+
+*Status 2026-09-28:* green for forward runs; fails at once on backward runs, as ADR-0001
+predicted. One backward run is enough: a concurrent insert at the same spot sorts
+between its characters, because they are all siblings. The shrunk case is pinned in
+`packages/crdt/test/corpus/p7-backward-run-interleaves.test.ts`. P7 is restricted to
+forward runs until Fugue lands (AJ's pick), which then widens it and flips that test.
+
 **P8 — Serialization round-trip.** `decode(encode(op))` deep-equals `op`, for every op
 shape. Fuzz the decoder with random bytes too: it should reject, not crash.
 

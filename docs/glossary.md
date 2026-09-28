@@ -111,3 +111,16 @@ seen. P4 tests it; ADR-0003 has the design.
 typed at the cursor appears at the cursor, on their own screen, whatever they have
 received from others. Convergence alone doesn't guarantee it; replicas can all agree on
 a document where a keystroke landed somewhere else. P5 tests it.
+
+## Interleaving (Phase 3)
+
+**Interleaving.** Two runs of text typed concurrently at the same spot get shuffled
+together in the merge ("axbycz" instead of "abcxyz"). Replicas still converge, so
+P1 to P6 pass, but the text is nonsense to both writers. In RGA a backward run (each
+character typed before the previous one, so all of them share one origin) is a set of
+siblings, and anything concurrent can sort between them. A forward run is a chain of
+children, which the skip loop keeps together. P7 tests it; ADR-0001 plans the fix
+(Fugue).
+
+**Regression corpus.** `packages/crdt/test/corpus/`: every counterexample fast-check
+has shrunk, frozen as a named test that runs on every push. It only grows.
