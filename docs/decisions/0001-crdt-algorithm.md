@@ -22,10 +22,15 @@ algorithm behind Yjs), Fugue (not an acronym; named for the musical form).
 |---|---|---|---|
 | Origins per char | 1 (left) | 2 | 2 + side |
 | Rough core size (LOC, Lines of Code) | ~200 | ~400 | ~300 |
-| Interleaving | forward-safe, **interleaves backward runs** | better; Fugue paper claims residual cases | proved maximally non-interleaving |
+| Interleaving | forward-safe, **interleaves backward runs** | better; Fugue paper claims residual cases | forward non-interleaving proved; only the FugueMax variant is proved *maximally* non-interleaving (see note) |
 | Failure mode if you get it wrong | diverges loudly, easy to debug | converges to subtly wrong order, hard to spot | tree invariant breaks, fails loudly |
 | Prior art to lean on | plentiful, well-explained | Yjs source (dense, optimised) | recent paper, few readable implementations |
 | Writeup value | "here's the classic and here's where it breaks" | "I reimplemented Yjs's core" | "I implemented the 2023 state of the art" |
+
+*Correction, 2026-09-28:* the paper (Weidner and Kleppmann, Theorem 9) proves maximal
+non-interleaving for **FugueMax**, which sorts right-side siblings by their right origin.
+Plain Fugue is proved forward non-interleaving and can still interleave backward in rare
+cases with several interacting concurrent edits. ADR-0004 records which one was built.
 
 ## Recommendation
 

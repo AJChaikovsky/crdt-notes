@@ -86,8 +86,10 @@ the only thing standing between you and that.
 **Fugue** — not an acronym, named for the musical form — (Weidner and Kleppmann, *The Art
 of the Fugue*, 2023) also uses left and right
 origins, structured as a tree where each node's children are split into left-descendants
-and right-descendants. It's proved *maximally* non-interleaving — it interleaves only in
-cases where every convergent algorithm must. The paper also identifies cases where YATA
+and right-descendants. Its FugueMax variant is proved *maximally* non-interleaving — it
+interleaves only in cases where every convergent algorithm must. Plain Fugue is proved
+forward non-interleaving and falls slightly short on some backward cases (corrected
+2026-09-28 against the paper's Theorem 9; see ADR-0004). The paper also identifies cases where YATA
 still interleaves.
 
 > **Verify this yourself.** That last claim about YATA is exactly the sort of thing a
@@ -108,7 +110,7 @@ section is the Fugue design, written as pseudocode for review before any TypeScr
 Checked against Weidner and Kleppmann, *The Art of the Fugue*, Algorithm 1
 (arxiv.org/abs/2305.00583).
 
-**PROPOSED, waiting on AJ's review of the pseudocode.** Decided so far (AJ, 2026-09-28):
+**Agreed by AJ on 2026-09-28; recorded in ADR-0004.** Decisions (AJ, 2026-09-28):
 plain Fugue sibling order; a new `Fugue` class side by side with `Rga`, same public
 methods, with every property run against both (P7 in full for Fugue, forward-only for
 RGA).
