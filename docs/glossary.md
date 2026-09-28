@@ -84,3 +84,19 @@ else. The simulator stores them as an explicit set of op keys per op.
 before all of its causal dependencies have. Concurrent ops, which don't depend on each
 other, can still arrive in any order. Real sync guarantees this, so the harness
 generates only such orders by default; P4 tests what happens when it's broken.
+
+**Mutation testing.** Deliberately breaking the code (a "mutation") and checking that
+the tests fail. A property that survives a real bug isn't testing what you think it is.
+Results go in the mutation log in `docs/testing-strategy.md`.
+
+**Idempotence.** Applying the same op twice leaves the state exactly as applying it
+once. A sync server replays ops after a reconnect because it can't know which of its
+last messages arrived, so every replica will see duplicates. Without it, a replayed
+insert types the character a second time, and a replayed delete can undo itself. P2
+tests it.
+
+**Commutativity.** Applying two concurrent ops in either order gives the same state.
+Replicas receive concurrent ops in different orders, so without it they drift apart.
+"Same state" means the whole item list, tombstones included, not just the visible text:
+two replicas can show identical text with a tombstone in different places, and diverge
+only when someone later types after that tombstone. P3 tests it with `Rga.items()`.

@@ -37,6 +37,11 @@ them too.
 
 **P3 — Commutativity.** Two concurrent ops applied in either order give the same state.
 
+*How it's tested:* run a scenario's steps without draining, then make one edit on each
+of two different replicas before either op is delivered, so the two are concurrent.
+Replay the op log into two fresh replicas, then apply the pair as AB on one and BA on
+the other, and compare `Rga.items()` (every item, tombstones included), not just text.
+
 **P4 — Causal readiness.** An op whose dependencies haven't arrived is buffered, not
 applied and not dropped. Generate deliberately out-of-order deliveries and assert the
 buffer drains correctly once the gap fills.
@@ -92,3 +97,5 @@ runs each).
 | 2026-09-28 | P1 | `apply` doesn't call `clock.observe` | **not caught** in 10,000 runs: replicas still converge, just on an order nobody typed. P1 can't see it; P5 (intention preservation) should |
 | 2026-09-28 | P2 | `#integrate` drops the `#has(op.id)` duplicate guard | 1, 1, 1 runs; shrinks to one insert echoed back to its author. P1 also fails now that scenarios contain duplicates |
 | 2026-09-28 | P2 | A delete toggles `deleted` instead of setting it | 3, 3, 1 runs; shrinks to insert, delete, then the delete echoed back. P1 also fails |
+| 2026-09-28 | P3 | Skip loop stops at tombstones | 925, 123, 78 runs (P1 is faster at 5, 16, 7). Shrinks to a pure hidden-state failure: a delete and a concurrent insert of the same char at the start leave text "a" on both copies but the tombstone on different sides |
+| 2026-09-28 | P3 | Sibling tie-break compares counters only | 3, 4, 13 runs; shrinks to two replicas each inserting "a" at index 0 |
