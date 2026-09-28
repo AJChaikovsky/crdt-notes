@@ -1,7 +1,8 @@
 /**
- * The list CRDT (Conflict-free Replicated Data Type) core.
+ * The list CRDT (Conflict-free Replicated Data Type) core: RGA (Replicated Growable
+ * Array), per ADR-0001 in `docs/decisions/`.
  *
- * Empty until Phase 1. ADR-0001 in `docs/decisions/` decides which algorithm lands here.
  * This package has zero runtime dependencies; `test/zero-deps.test.ts` enforces it.
  */
-export {};
+export { Clock } from "./clock.js";
+export { compareIds, type Id, type ReplicaId } from "./id.js";
