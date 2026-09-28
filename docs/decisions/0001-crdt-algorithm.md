@@ -52,6 +52,8 @@ I will use an RGA-style list CRDT as the starting algorithm for collaborative te
 
 Deleted characters remain as tombstones instead of being physically removed because later or concurrent inserts may still reference them as origins. The first implementation intentionally uses a plain array and O(n) scans because it is easier to understand and verify before optimizing the representation in later phases.
 
+I chose RGA over YATA or Fugue because it is simpler to implement and reason about, which makes it a good baseline for validating the core CRDT behavior first. I’m accepting its known weakness that concurrent backward runs can interleave, such as producing `axbycz`; Phase 3 will capture that behavior with P7 and then replace the ordering approach with Fugue.
+
 ## Consequences
 
 TODO
