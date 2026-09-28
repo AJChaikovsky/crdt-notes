@@ -92,11 +92,37 @@ describe("Rga insert", () => {
     expect(bob.insert(null, "!").id).toEqual({ counter: 4, replica: "B" });
   });
 
-  it("throws on an insert whose origin hasn't arrived", () => {
+  it("holds an insert back until its origin arrives", () => {
     const alice = new Rga("A");
-    const [, i] = type(alice, "Hi");
+    const [h, i] = type(alice, "Hi");
     const bob = new Rga("B");
-    if (i === undefined) throw new Error("unreachable");
-    expect(() => bob.apply(i)).toThrow(/not been applied/);
+    if (h === undefined || i === undefined) throw new Error("unreachable");
+    bob.apply(i);
+    expect(bob.text()).toBe("");
+    expect(bob.pendingCount).toBe(1);
+    bob.apply(h);
+    expect(bob.text()).toBe("Hi");
+    expect(bob.pendingCount).toBe(0);
+  });
+
+  it("unblocks a chain of held inserts in one go", () => {
+    const alice = new Rga("A");
+    const ops = type(alice, "abcd");
+    const bob = new Rga("B");
+    for (const op of [...ops].reverse()) bob.apply(op);
+    expect(bob.text()).toBe("abcd");
+    expect(bob.pendingCount).toBe(0);
+  });
+
+  it("keeps one copy of a held insert delivered twice", () => {
+    const alice = new Rga("A");
+    const [h, i] = type(alice, "Hi");
+    const bob = new Rga("B");
+    if (h === undefined || i === undefined) throw new Error("unreachable");
+    bob.apply(i);
+    bob.apply(i);
+    expect(bob.pendingCount).toBe(1);
+    bob.apply(h);
+    expect(bob.text()).toBe("Hi");
   });
 });

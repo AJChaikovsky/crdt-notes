@@ -111,12 +111,18 @@ describe("Rga delete", () => {
     expect(bob.text()).toBe("ac");
   });
 
-  it("throws on a delete whose target hasn't arrived", () => {
+  it("holds a delete back until its target arrives", () => {
     const alice = new Rga("A");
     const [a] = type(alice, "a");
     if (a === undefined) throw new Error("unreachable");
     const del = alice.delete(a.id);
-    expect(() => new Rga("B").apply(del)).toThrow(/not been applied/);
+    const bob = new Rga("B");
+    bob.apply(del);
+    expect(bob.pendingCount).toBe(1);
+    bob.apply(a);
+    expect(bob.text()).toBe("");
+    expect(bob.items()).toEqual(alice.items());
+    expect(bob.pendingCount).toBe(0);
   });
 });
 
