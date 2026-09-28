@@ -6,3 +6,4 @@
  */
 export { Clock } from "./clock.js";
 export { compareIds, type Id, type ReplicaId } from "./id.js";
+export { Rga, type InsertOp } from "./rga.js";
