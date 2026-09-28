@@ -91,8 +91,11 @@ export function withoutDuplicates(scenario: Scenario): Scenario {
   return { ...scenario, steps: scenario.steps.filter((s) => s.kind !== "redeliver") };
 }
 
-/** Runs `scenario` to the end, delivering everything, and returns the simulator. */
-export function run(scenario: Scenario): Simulator {
+/**
+ * Runs the steps of `scenario` without draining, so replicas may still disagree and ops
+ * may still be in flight.
+ */
+export function runSteps(scenario: Scenario): Simulator {
   const sim = new Simulator(REPLICA_IDS.slice(0, scenario.replicas));
   for (const s of scenario.steps) {
     if (s.kind === "edit") {
@@ -105,7 +108,32 @@ export function run(scenario: Scenario): Simulator {
       if (next !== undefined) sim.deliver(next);
     }
   }
+  return sim;
+}
+
+/** Runs `scenario` to the end, delivering everything, and returns the simulator. */
+export function run(scenario: Scenario): Simulator {
+  const sim = runSteps(scenario);
   let i = 0;
   sim.deliverAll(() => scenario.drain[i++ % Math.max(scenario.drain.length, 1)] ?? 0);
   return sim;
+}
+
+/**
+ * A scenario followed by two edits on different replicas, made before either sees the
+ * other's, so the two ops are concurrent. Used by P3.
+ */
+export interface ConcurrentPair {
+  readonly scenario: Scenario;
+  readonly first: { readonly replica: number; readonly edit: Edit };
+  readonly second: { readonly offset: number; readonly edit: Edit };
+}
+
+export function concurrentPair(maxSteps = 60): fc.Arbitrary<ConcurrentPair> {
+  return fc.record({
+    scenario: scenario(maxSteps),
+    first: fc.record({ replica: fc.nat({ max: 4 }), edit }),
+    // The second replica is 1 to size - 1 places after the first, so it always differs.
+    second: fc.record({ offset: fc.nat({ max: 3 }), edit }),
+  });
 }

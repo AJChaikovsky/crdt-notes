@@ -26,6 +26,13 @@ export interface DeleteOp {
 /** Any operation a replica can send to its peers. */
 export type Op = InsertOp | DeleteOp;
 
+/** A read-only view of one item in the document, visible or not. */
+export interface ItemView {
+  readonly id: Id;
+  readonly char: string;
+  readonly deleted: boolean;
+}
+
 interface Item {
   readonly id: Id;
   readonly char: string;
@@ -104,6 +111,30 @@ export class Rga {
    */
   visibleIds(): Id[] {
     return this.#items.filter((item) => !item.deleted).map((item) => item.id);
+  }
+
+  /**
+   * Every item in document order, tombstones included, as copies. Two replicas can show
+   * the same `text()` while tombstones sit in different places, and a later insert typed
+   * after one of those tombstones would then land differently on each. Comparing
+   * `items()` catches that before any later insert exposes it.
+   *
+   * @example Bob deletes "x" while Alice concurrently types "y" after it. Both replicas
+   * keep the tombstone, in the same place:
+   * ```ts
+   * const alice = new Rga("A");
+   * const x = alice.insert(null, "x");   // (1,A)
+   * const bob = new Rga("B");
+   * bob.apply(x);
+   * const del = bob.delete(x.id);        // (2,B)
+   * const y = alice.insert(x.id, "y");   // (2,A), origin is the now-deleted "x"
+   * alice.apply(del);
+   * bob.apply(y);
+   * alice.items(); // [x (deleted), y], and bob.items() is equal
+   * ```
+   */
+  items(): ItemView[] {
+    return this.#items.map(({ id, char, deleted }) => ({ id, char, deleted }));
   }
 
   #integrate(op: InsertOp): void {
