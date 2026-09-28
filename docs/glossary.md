@@ -53,3 +53,16 @@ seen A, B's counter is bigger than A's. The reverse does not hold, since a small
 counter can also belong to a concurrent op, which is why ties need a rule. Without the
 jump, something typed after seeing another op could get a smaller counter and be sorted
 as if it came first. See ADR-0002.
+
+**Origin.** The ID of the character an insert was typed after (`null` for the start of
+the document). RGA (Replicated Growable Array) stores it instead of an index, because
+an index names a different character once someone else edits earlier in the text.
+
+**Siblings.** Inserts that share the same origin, usually typed concurrently at the
+same spot. RGA places the one with the bigger ID first. Everything typed after a sibling
+has an even bigger ID (the Lamport clock guarantees it), so skipping every item with a
+bigger ID skips a newer sibling together with everything typed after it.
+
+**Integrate.** Applying an insert to a replica's state: start just after the origin,
+skip items with bigger IDs, insert at the first smaller one. Local and remote inserts use
+the same code, which is what makes replicas agree.
