@@ -51,9 +51,21 @@ any time. After the same scenarios as P1, every replica must have nothing held
 (`pendingCount` 0), identical `items()`, and every insert ever made. About half of
 scenarios end their steps with ops still held, so the buffer is exercised. See ADR-0003.
 
-**P5 — Intention preservation.** Take the merged document and delete every character
-that didn't come from replica R. What's left must be exactly R's characters in the order
-R inserted them. If this fails, you've reordered someone's typing.
+**P5 — Intention preservation.** Every local edit lands where the author's cursor was:
+an insert at index `i` shows up at index `i` of the author's own text, and a delete at
+index `i` removes exactly that character. If this fails, a user's keystroke appeared
+somewhere other than where they typed it.
+
+*How it's tested:* after every local edit in a scenario (causal or not), the author's
+new text must equal the old text with the character spliced in at, or removed from, the
+cursor index.
+
+*Changed 2026-09-28 (AJ's pick).* The first version said: keep only replica R's
+characters in the merged document, and they must appear in the order R typed them. That
+can't fail once replicas converge, because integrating only ever splices an item in and
+never moves one, so R's characters keep the relative order R saw. It also missed the
+bug it was meant to catch: without `observe`, a new character can land on the wrong side
+of a remote one, and filtering out the remote one hides that.
 
 **P6 — Conservation.** The multiset (a set allowing duplicates — you're comparing counts,
 since a document really can contain forty `e`s) of visible characters equals (all inserted) minus
@@ -99,7 +111,7 @@ runs each).
 |---|---|---|---|
 | 2026-09-28 | P1 | Sibling tie-break compares counters only, ignoring replica ID | 1, 1, 1 runs; shrinks to two replicas each inserting one char at index 0 |
 | 2026-09-28 | P1 | Skip loop stops at tombstones | 5, 16, 7 runs |
-| 2026-09-28 | P1 | `apply` doesn't call `clock.observe` | **not caught** in 10,000 runs: replicas still converge, just on an order nobody typed. P1 can't see it; P5 (intention preservation) should |
+| 2026-09-28 | P1 | `apply` doesn't call `clock.observe` | **not caught** in 10,000 runs: replicas still converge, just on an order nobody typed. P1 can't see it; P5's cursor check does (see below) |
 | 2026-09-28 | P2 | `#integrate` drops the `#has(op.id)` duplicate guard | 1, 1, 1 runs; shrinks to one insert echoed back to its author. P1 also fails now that scenarios contain duplicates |
 | 2026-09-28 | P2 | A delete toggles `deleted` instead of setting it | 3, 3, 1 runs; shrinks to insert, delete, then the delete echoed back. P1 also fails |
 | 2026-09-28 | P3 | Skip loop stops at tombstones | 925, 123, 78 runs (P1 is faster at 5, 16, 7). Shrinks to a pure hidden-state failure: a delete and a concurrent insert of the same char at the start leave text "a" on both copies but the tombstone on different sides |
@@ -107,3 +119,4 @@ runs each).
 | 2026-09-28 | P4 | Early ops are dropped instead of held | 1, 1, 3 runs |
 | 2026-09-28 | P4 | Held ops are never retried | 1, 1, 3 runs |
 | 2026-09-28 | P4 | Only one held op is released per arrival, so chains stay stuck | 2, 2, 3 runs |
+| 2026-09-28 | P5 | `apply` doesn't call `clock.observe` | 27, 20, 51 runs; P1 to P4 all still pass. Shrinks to: A types "a" twice at index 0, B receives only the second (delivered out of order), then types "e" at index 0 and sees "ae" |

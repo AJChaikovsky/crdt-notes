@@ -91,9 +91,22 @@ export function withoutDuplicates(scenario: Scenario): Scenario {
   return { ...scenario, steps: scenario.steps.filter((s) => s.kind !== "redeliver") };
 }
 
-/** `causal: false` lets the network deliver ops before their dependencies (for P4). */
 export interface RunOptions {
+  /** `false` lets the network deliver ops before their dependencies (for P4). */
   readonly causal?: boolean;
+  /**
+   * Called after every local edit with the author's text just before and just after it,
+   * and the edit with its index clamped the way the simulator applied it (for P5).
+   */
+  readonly afterEdit?: (check: EditCheck) => void;
+}
+
+/** One local edit as the author saw it. */
+export interface EditCheck {
+  readonly replica: number;
+  readonly before: string;
+  readonly after: string;
+  readonly edit: Edit;
 }
 
 /**
@@ -104,7 +117,17 @@ export function runSteps(scenario: Scenario, options: RunOptions = {}): Simulato
   const sim = new Simulator(REPLICA_IDS.slice(0, scenario.replicas), options);
   for (const s of scenario.steps) {
     if (s.kind === "edit") {
-      sim.edit(s.replica % sim.size, s.edit);
+      const replica = s.replica % sim.size;
+      const before = sim.text(replica);
+      const op = sim.edit(replica, s.edit);
+      if (op !== null && options.afterEdit !== undefined) {
+        // Mirror the simulator's clamping so the check knows which cursor was used.
+        const edit: Edit =
+          s.edit.kind === "insert"
+            ? { ...s.edit, index: Math.min(s.edit.index, before.length) }
+            : { ...s.edit, index: s.edit.index % before.length };
+        options.afterEdit({ replica, before, after: sim.text(replica), edit });
+      }
     } else if (s.kind === "redeliver") {
       sim.redeliver(s.replica % sim.size, s.pick);
     } else {
