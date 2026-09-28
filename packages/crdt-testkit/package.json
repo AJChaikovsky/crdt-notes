@@ -1,0 +1,14 @@
+{
+  "name": "@crdt-notes/crdt-testkit",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Replica simulator, fast-check generators and trace replay. Dev only.",
+  "type": "module",
+  "exports": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "fast-check": "^4.10.2"
+  }
+}
