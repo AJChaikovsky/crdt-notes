@@ -2,8 +2,8 @@
 
 Terms are defined in `../glossary.md`.
 
-- **Status:** OPEN — decide before Phase 1
-- **Date:** TODO
+- **Status:** ACCEPTED
+- **Date:** 2026-09-28
 
 ## Context
 
@@ -48,8 +48,9 @@ The tests, generators, ID types, and clock all survive.
 
 ## Decision
 
-TODO — record your choice and your reasoning in your own words. If you disagree with the
-recommendation, write down why; that's more useful later than agreement.
+I will use an RGA-style list CRDT as the starting algorithm for collaborative text. Each inserted character gets a permanent ID based on a Lamport counter and replica ID, and stores the ID of the character it was inserted after as its origin. Concurrent siblings are ordered deterministically by ID so every replica makes the same choice regardless of delivery order.
+
+Deleted characters remain as tombstones instead of being physically removed because later or concurrent inserts may still reference them as origins. The first implementation intentionally uses a plain array and O(n) scans because it is easier to understand and verify before optimizing the representation in later phases.
 
 ## Consequences
 
