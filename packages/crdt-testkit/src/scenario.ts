@@ -1,0 +1,74 @@
+import fc from "fast-check";
+import { Simulator, type Edit } from "./simulator.js";
+
+/** One step of a scenario: a local edit, or delivering one ready op. */
+export type Step =
+  | { readonly kind: "edit"; readonly replica: number; readonly edit: Edit }
+  | { readonly kind: "deliver"; readonly pick: number };
+
+/**
+ * A random run of the simulator, as plain data. Replica numbers, indices and picks are
+ * raw numbers that the simulator wraps into range, so every scenario is valid and
+ * fast-check can shrink one by deleting steps or shrinking numbers without making it
+ * impossible to run.
+ */
+export interface Scenario {
+  readonly replicas: number;
+  readonly steps: readonly Step[];
+  /** Picks for draining whatever is still pending after `steps`. */
+  readonly drain: readonly number[];
+}
+
+const REPLICA_IDS = ["A", "B", "C", "D", "E"] as const;
+
+// Inserts are weighted 3:1 over deletes so documents grow enough to be interesting.
+const edit: fc.Arbitrary<Edit> = fc.oneof(
+  {
+    weight: 3,
+    arbitrary: fc.record({
+      kind: fc.constant("insert" as const),
+      index: fc.nat({ max: 20 }),
+      char: fc.constantFrom("a", "b", "c", "d", "e"),
+    }),
+  },
+  {
+    weight: 1,
+    arbitrary: fc.record({
+      kind: fc.constant("delete" as const),
+      index: fc.nat({ max: 20 }),
+    }),
+  },
+);
+
+const step: fc.Arbitrary<Step> = fc.oneof(
+  fc.record({ kind: fc.constant("edit" as const), replica: fc.nat({ max: 4 }), edit }),
+  fc.record({ kind: fc.constant("deliver" as const), pick: fc.nat({ max: 50 }) }),
+);
+
+/** Scenarios with 2 to 5 replicas and up to `maxSteps` steps. */
+export function scenario(maxSteps = 60): fc.Arbitrary<Scenario> {
+  return fc.record({
+    replicas: fc.integer({ min: 2, max: REPLICA_IDS.length }),
+    // fast-check's default size keeps arrays to a handful of items; "medium" gives
+    // scenarios long enough for concurrent edits to pile up.
+    steps: fc.array(step, { maxLength: maxSteps, size: "medium" }),
+    drain: fc.array(fc.nat({ max: 50 }), { maxLength: 20 }),
+  });
+}
+
+/** Runs `scenario` to the end, delivering everything, and returns the simulator. */
+export function run(scenario: Scenario): Simulator {
+  const sim = new Simulator(REPLICA_IDS.slice(0, scenario.replicas));
+  for (const s of scenario.steps) {
+    if (s.kind === "edit") {
+      sim.edit(s.replica % sim.size, s.edit);
+    } else {
+      const ready = sim.deliverable();
+      const next = ready[s.pick % Math.max(ready.length, 1)];
+      if (next !== undefined) sim.deliver(next);
+    }
+  }
+  let i = 0;
+  sim.deliverAll(() => scenario.drain[i++ % Math.max(scenario.drain.length, 1)] ?? 0);
+  return sim;
+}

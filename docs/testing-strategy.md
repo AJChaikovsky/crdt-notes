@@ -71,3 +71,16 @@ replaying the full op log from empty. This is what lets you compact the IndexedD
   happens-before op B if B's author had already seen A; if neither precedes the other
   they're concurrent, which is the only case the merge rule has to think about — by
   default, with a separate opt-in mode that violates it — that mode is how you test P4.
+
+---
+
+## Mutation log
+
+Deliberate bugs injected to check the suite catches them (seeds 1, 2, 3; up to 10,000
+runs each).
+
+| Date | Property | Mutation | Caught after |
+|---|---|---|---|
+| 2026-09-28 | P1 | Sibling tie-break compares counters only, ignoring replica ID | 1, 1, 1 runs; shrinks to two replicas each inserting one char at index 0 |
+| 2026-09-28 | P1 | Skip loop stops at tombstones | 5, 16, 7 runs |
+| 2026-09-28 | P1 | `apply` doesn't call `clock.observe` | **not caught** in 10,000 runs: replicas still converge, just on an order nobody typed. P1 can't see it; P5 (intention preservation) should |
