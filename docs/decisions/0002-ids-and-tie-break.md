@@ -33,6 +33,12 @@ way. Sibling order depends on it, so a disagreement here means replicas diverge.
    need the op format changed later. Ops carry a `kind` field (`"insert"` or `"delete"`)
    so one `apply` can take either.
 
+6. **PROPOSED: an insert at cursor index `i` uses the visible character at `i - 1` as
+   its origin** (or `null` at the start), even when tombstones sit between that
+   character and the cursor. This is what the simulator does (and, later, the editor).
+   Either choice converges; it only changes where text typed next to deleted text
+   lands relative to concurrent edits. Revisit in Phase 3 if P7 says otherwise.
+
 ## Rejected
 
 - Tie-break on wall-clock time: clocks disagree between devices, and two ops can share a

@@ -72,3 +72,15 @@ of being removed. It is hidden from the visible text but keeps its place. Withou
 insert typed concurrently right after that character would arrive with an origin that no
 longer exists and have nowhere to go. The cost is that tombstones accumulate; ADR-0003
 will decide whether and when to collect them.
+
+## Convergence harness (Phase 2)
+
+**Causal dependencies.** Every op the author of an op had already applied when they made
+it. The origin (or delete target) is one of them, but not the only one: if Alice saw
+Carol's edit before typing, Carol's edit is a dependency even if Alice typed somewhere
+else. The simulator stores them as an explicit set of op keys per op.
+
+**Causally valid delivery.** An order of delivering ops in which no op reaches a replica
+before all of its causal dependencies have. Concurrent ops, which don't depend on each
+other, can still arrive in any order. Real sync guarantees this, so the harness
+generates only such orders by default; P4 tests what happens when it's broken.
