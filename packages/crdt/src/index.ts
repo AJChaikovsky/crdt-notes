@@ -6,5 +6,5 @@
  */
 export { Clock } from "./clock.js";
 export { compareIds, type Id, type ReplicaId } from "./id.js";
-export { Fugue, type FugueInsertOp } from "./fugue.js";
+export { Fugue, type FugueInsertOp, type FugueOp } from "./fugue.js";
 export { Rga, type DeleteOp, type InsertOp, type ItemView, type Op } from "./rga.js";

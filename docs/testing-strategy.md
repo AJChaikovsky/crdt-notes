@@ -141,3 +141,6 @@ runs each).
 | 2026-09-28 | P5 | `apply` doesn't call `clock.observe` | 27, 20, 51 runs; P1 to P4 all still pass. Shrinks to: A types "a" twice at index 0, B receives only the second (delivered out of order), then types "e" at index 0 and sees "ae" |
 | 2026-09-28 | P6 | A delete tombstones the item after its target | 1, 1, 3 runs. Every other property fails too: a loud bug, but P6 names it directly ("this ID should be gone") |
 | 2026-09-28 | P6 | The duplicate check compares counters only, so a concurrent insert with the same counter is dropped | 1, 2, 1 runs; P1 to P5 fail as well |
+| 2026-09-29 | Fugue unit tests | Held ops are never retried | 2 of 61 tests fail (the two held-op tests). Properties don't run against Fugue until step 3 |
+| 2026-09-29 | Fugue unit tests | Early ops are dropped instead of held | 2 of 61 tests fail (the same two) |
+| 2026-09-29 | Fugue unit tests | A delete looks up its target but doesn't tombstone it | 4 of 61 tests fail (every delete test) |
