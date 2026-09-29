@@ -124,3 +124,14 @@ children, which the skip loop keeps together. P7 tests it; ADR-0001 plans the fi
 
 **Regression corpus.** `packages/crdt/test/corpus/`: every counterexample fast-check
 has shrunk, frozen as a named test that runs on every push. It only grows.
+
+**Fugue tree, left and right children.** In Fugue every character is a node with left
+children and right children, each list sorted by ID. The document is the in-order walk:
+a node's left children (and their subtrees), then the node, then its right children.
+Typing forward adds right children; typing before an existing character adds a left
+child of it. A run typed in one go is one subtree, and a walk never leaves a subtree
+half-read, which is why runs don't interleave. ADR-0004.
+
+**Right origin.** The character immediately to the right of the cursor when typing,
+tombstones included. RGA ignores it; Fugue uses it to decide where a character typed
+before existing text belongs.

@@ -32,6 +32,8 @@ way. Sibling order depends on it, so a disagreement here means replicas diverge.
    which deletes it missed. The alternative, a delete that only names its target, would
    need the op format changed later. Ops carry a `kind` field (`"insert"` or `"delete"`)
    so one `apply` can take either.
+   *Fugue (ADR-0004):* a Fugue insert carries `parent` and `side` instead of `origin`.
+   IDs, the clock, `compareIds` and `DeleteOp` are unchanged.
 
 6. **An insert at cursor index `i` uses the visible character at `i - 1` as its
    origin** (or `null` at the start), even when tombstones sit between that
