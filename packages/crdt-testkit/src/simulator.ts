@@ -1,4 +1,5 @@
-import { Rga, type Id, type Op, type ReplicaId } from "@crdt-notes/crdt";
+import type { Id, ReplicaId } from "@crdt-notes/crdt";
+import type { Implementation, ListCrdt, OpShape } from "./implementation.js";
 
 /** A local edit, addressed by visible index the way a user's cursor would be. */
 export type Edit =
@@ -6,15 +7,15 @@ export type Edit =
   | { readonly kind: "delete"; readonly index: number };
 
 /** An op plus the ops its author had applied when making it (its causal dependencies). */
-export interface SentOp {
-  readonly op: Op;
+export interface SentOp<O extends OpShape> {
+  readonly op: O;
   readonly deps: ReadonlySet<string>;
 }
 
 /** A pending delivery of `sent` to replica `to`. */
-export interface Delivery {
+export interface Delivery<O extends OpShape> {
   readonly to: number;
-  readonly sent: SentOp;
+  readonly sent: SentOp<O>;
 }
 
 /** A stable string key for an op, so ops can live in sets. */
@@ -22,8 +23,8 @@ export function opKey(id: Id): string {
   return `${id.counter}:${id.replica}`;
 }
 
-interface Replica {
-  readonly rga: Rga;
+interface Replica<O extends OpShape> {
+  readonly doc: ListCrdt<O>;
   readonly applied: Set<string>;
 }
 
@@ -36,16 +37,23 @@ interface Replica {
  * With `{ causal: false }` the network may deliver any pending op at any time, ignoring
  * dependencies. That is how P4 checks that replicas hold early ops back.
  */
-export class Simulator {
-  readonly #replicas: Replica[];
-  readonly #pending: Delivery[] = [];
+export class Simulator<O extends OpShape> {
+  readonly #replicas: Replica<O>[];
+  readonly #pending: Delivery<O>[] = [];
   /** Every op ever made, in the order it was made, so it can be sent again. */
-  readonly #log: SentOp[] = [];
+  readonly #log: SentOp<O>[] = [];
 
   readonly #causal: boolean;
 
-  constructor(replicaIds: readonly ReplicaId[], options: { causal?: boolean } = {}) {
-    this.#replicas = replicaIds.map((id) => ({ rga: new Rga(id), applied: new Set() }));
+  constructor(
+    impl: Implementation<O>,
+    replicaIds: readonly ReplicaId[],
+    options: { causal?: boolean } = {},
+  ) {
+    this.#replicas = replicaIds.map((id) => ({
+      doc: impl.create(id),
+      applied: new Set(),
+    }));
     this.#causal = options.causal ?? true;
   }
 
@@ -61,19 +69,19 @@ export class Simulator {
    * An insert at index `i` uses the visible character at `i - 1` as its origin (or
    * `null` at the start), even if tombstones sit between that character and the cursor.
    */
-  edit(from: number, edit: Edit): Op | null {
+  edit(from: number, edit: Edit): O | null {
     const replica = this.#replica(from);
-    const ids = replica.rga.visibleIds();
+    const ids = replica.doc.visibleIds();
     const deps = new Set(replica.applied);
-    let op: Op;
+    let op: O;
     if (edit.kind === "insert") {
       const index = Math.min(edit.index, ids.length);
-      op = replica.rga.insert(ids[index - 1] ?? null, edit.char);
+      op = replica.doc.insert(ids[index - 1] ?? null, edit.char);
     } else {
       if (ids.length === 0) return null;
       const target = ids[edit.index % ids.length];
       if (target === undefined) return null;
-      op = replica.rga.delete(target);
+      op = replica.doc.delete(target);
     }
     replica.applied.add(opKey(op.id));
     this.#log.push({ op, deps });
@@ -87,7 +95,7 @@ export class Simulator {
    * Deliveries whose dependencies are all applied at their destination, or every pending
    * delivery when the network isn't causal.
    */
-  deliverable(): Delivery[] {
+  deliverable(): Delivery<O>[] {
     if (!this.#causal) return [...this.#pending];
     return this.#pending.filter(({ to, sent }) => {
       const applied = this.#replica(to).applied;
@@ -97,14 +105,14 @@ export class Simulator {
   }
 
   /** Applies one pending delivery. Throws if it isn't causally ready. */
-  deliver(delivery: Delivery): void {
+  deliver(delivery: Delivery<O>): void {
     const index = this.#pending.indexOf(delivery);
     if (index === -1) throw new Error("not a pending delivery");
     if (!this.deliverable().includes(delivery))
       throw new Error("delivery not causally ready");
     this.#pending.splice(index, 1);
     const replica = this.#replica(delivery.to);
-    replica.rga.apply(delivery.sent.op);
+    replica.doc.apply(delivery.sent.op);
     replica.applied.add(opKey(delivery.sent.op.id));
   }
 
@@ -128,12 +136,12 @@ export class Simulator {
    * `pick` chooses which one (wrapped into range). Returns the op, or `null` if the
    * replica hasn't applied anything yet. A duplicate must change nothing (P2).
    */
-  redeliver(to: number, pick: number): Op | null {
+  redeliver(to: number, pick: number): O | null {
     const replica = this.#replica(to);
     const seen = this.#log.filter(({ op }) => replica.applied.has(opKey(op.id)));
     const again = seen[pick % Math.max(seen.length, 1)];
     if (again === undefined) return null;
-    replica.rga.apply(again.op);
+    replica.doc.apply(again.op);
     return again.op;
   }
 
@@ -141,12 +149,12 @@ export class Simulator {
    * Every op ever made, in the order it was made. That order is causally valid: an op's
    * dependencies were all made before it, so a fresh replica can apply the log in order.
    */
-  log(): SentOp[] {
+  log(): SentOp<O>[] {
     return [...this.#log];
   }
 
   /** Every delivery not yet made, ready or not. */
-  pending(): Delivery[] {
+  pending(): Delivery<O>[] {
     return [...this.#pending];
   }
 
@@ -155,19 +163,19 @@ export class Simulator {
   }
 
   text(replica: number): string {
-    return this.#replica(replica).rga.text();
+    return this.#replica(replica).doc.text();
   }
 
   /** Replica `replica`'s document, for checks beyond its text. */
-  rga(replica: number): Rga {
-    return this.#replica(replica).rga;
+  doc(replica: number): ListCrdt<O> {
+    return this.#replica(replica).doc;
   }
 
   texts(): string[] {
-    return this.#replicas.map((r) => r.rga.text());
+    return this.#replicas.map((r) => r.doc.text());
   }
 
-  #replica(index: number): Replica {
+  #replica(index: number): Replica<O> {
     const replica = this.#replicas[index];
     if (replica === undefined) throw new Error(`no replica ${index}`);
     return replica;
