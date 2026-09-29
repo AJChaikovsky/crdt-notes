@@ -96,6 +96,14 @@ between its characters, because they are all siblings. The shrunk case is pinned
 `packages/crdt/test/corpus/p7-backward-run-interleaves.test.ts`. P7 is restricted to
 forward runs until Fugue lands (AJ's pick), which then widens it and flips that test.
 
+*Status 2026-09-29:* P1 to P7 now run against both RGA and Fugue. Fugue passes P7 on
+forward and backward runs at 10,000 cases for seeds 1, 2 and 3. RGA stays on forward
+runs only, and the full generator still breaks it within 1 or 2 cases. The corpus file
+keeps the RGA case and adds the same edits under Fugue, expecting both runs whole.
+Plain Fugue is only proved non-interleaving for forward runs (ADR-0001's correction
+note), so a rare backward case may exist that this generator doesn't reach. None has
+turned up yet.
+
 **P8 — Serialization round-trip.** `decode(encode(op))` deep-equals `op`, for every op
 shape. Fuzz the decoder with random bytes too: it should reject, not crash.
 
@@ -144,3 +152,4 @@ runs each).
 | 2026-09-29 | Fugue unit tests | Held ops are never retried | 2 of 61 tests fail (the two held-op tests). Properties don't run against Fugue until step 3 |
 | 2026-09-29 | Fugue unit tests | Early ops are dropped instead of held | 2 of 61 tests fail (the same two) |
 | 2026-09-29 | Fugue unit tests | A delete looks up its target but doesn't tombstone it | 4 of 61 tests fail (every delete test) |
+| 2026-09-29 | P5, P7 (Fugue) | Local insert always makes a right child of the origin, never a left child | P7 after 1, 2, 3 runs and P5 after 1, 1, 1 runs. P1 to P4 and P6 still pass: replicas converge, just in the wrong order |
