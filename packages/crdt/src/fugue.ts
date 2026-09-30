@@ -1,6 +1,6 @@
 import { Clock } from "./clock.js";
 import { compareIds, type Id, type ReplicaId } from "./id.js";
-import type { ItemView } from "./rga.js";
+import type { DeleteOp, ItemView } from "./rga.js";
 
 /**
  * Insert one character into the Fugue tree as a child of `parent` (`null` is the start
@@ -14,6 +14,9 @@ export interface FugueInsertOp {
   readonly parent: Id | null;
   readonly side: "left" | "right";
 }
+
+/** Any operation a Fugue replica can send to its peers. Deletes are the same as RGA's. */
+export type FugueOp = FugueInsertOp | DeleteOp;
 
 interface Node {
   readonly id: Id;
@@ -56,6 +59,8 @@ export class Fugue {
   readonly #nodes = new Map<string, Node>();
   /** The start of the document. It only ever has right children. */
   readonly #root: Id[] = [];
+  /** Remote ops that arrived before their parent or target, in arrival order (P4). */
+  readonly #pending: FugueOp[] = [];
 
   constructor(replica: ReplicaId) {
     this.#clock = new Clock(replica);
@@ -87,14 +92,38 @@ export class Fugue {
     return op;
   }
 
+  /** Creates a local delete of `target`, applies it, and returns it to send to peers. */
+  delete(target: Id): DeleteOp {
+    const op: DeleteOp = { kind: "delete", id: this.#clock.tick(), target };
+    this.#applyReady(op);
+    return op;
+  }
+
   /**
-   * Applies an insert from another replica.
-   *
-   * @throws if its parent hasn't arrived yet. Holding such ops back comes next.
+   * Applies an op from another replica, in any order. An op whose parent (for an insert)
+   * or target (for a delete) hasn't arrived yet is held back and applied as soon as it
+   * has (ADR-0003, with parent in place of origin).
    */
-  apply(op: FugueInsertOp): void {
+  apply(op: FugueOp): void {
     this.#clock.observe(op.id);
-    this.#integrate(op);
+    if (!this.#ready(op)) {
+      // A duplicate of an op that is already waiting changes nothing (P2).
+      if (!this.#pending.some((p) => compareIds(p.id, op.id) === 0))
+        this.#pending.push(op);
+      return;
+    }
+    this.#applyReady(op);
+    // Applying one op can make held ones ready, and those can unblock more.
+    for (let i = this.#pending.findIndex((p) => this.#ready(p)); i !== -1;) {
+      const [next] = this.#pending.splice(i, 1);
+      if (next !== undefined) this.#applyReady(next);
+      i = this.#pending.findIndex((p) => this.#ready(p));
+    }
+  }
+
+  /** How many remote ops are held back waiting for their parent or target. */
+  get pendingCount(): number {
+    return this.#pending.length;
   }
 
   /** The visible document. */
@@ -115,6 +144,18 @@ export class Fugue {
   /** Every item in document order, tombstones included, as copies. */
   items(): ItemView[] {
     return this.#walk().map(({ id, char, deleted }) => ({ id, char, deleted }));
+  }
+
+  #ready(op: FugueOp): boolean {
+    if (op.kind === "delete") return this.#nodes.has(key(op.target));
+    return op.parent === null || this.#nodes.has(key(op.parent));
+  }
+
+  #applyReady(op: FugueOp): void {
+    // A delete keeps the node as a tombstone: it may still be a parent, and the walk
+    // still passes through it. Deleting twice changes nothing.
+    if (op.kind === "delete") this.#node(op.target).deleted = true;
+    else this.#integrate(op);
   }
 
   #integrate(op: FugueInsertOp): void {
