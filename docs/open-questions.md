@@ -7,6 +7,13 @@ instead of being asked in chat. When you answer one, move it with your answer in
 
 Terms are defined in `glossary.md`.
 
+## Phase 5: catching up with version vectors
+
+1. Bob's ops have Lamport counters 1, 2, 9 and 10. Why can't a vector of Lamport
+   counters tell the server that op 9 is missing, when a vector of `seq` numbers can?
+2. A log holds Bob's ops 1, 2 and 4. Its vector says Bob: 2. What goes wrong if it says
+   Bob: 4 instead, and in what real situation could that happen?
+
 ## P8 and P9: encoding and snapshots
 
 1. A snapshot stores the Lamport clock instead of working it out from the highest

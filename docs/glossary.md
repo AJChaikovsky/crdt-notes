@@ -178,3 +178,17 @@ throw away an old op log (compaction). It must restore everything that affects f
 behaviour, not just the text: here the Fugue tree's shape, the tombstones, the Lamport
 clock and any held-back ops (ADR-0007). A snapshot that only kept the text would load
 fine and then merge the next concurrent edit differently from every other replica.
+
+## Sync (Phase 5)
+
+**Version vector.** A summary of which ops a side holds: one number per author, where
+"Bob: 4" means "I hold Bob's ops 1 to 4". Two sides swap vectors when they reconnect,
+and each sends only the ops above the other's numbers. Without it, a client offline for
+a week either re-downloads the whole history or has no way to know what it missed.
+It only works if the numbers have no gaps, which is why ops carry a per-author sequence
+number (below) and the vector stops at the first missing op (ADR-0008).
+
+**Sequence number (`seq`).** An op's position among its author's ops: 1 for the first,
+then 2, 3, and so on, with no gaps. It is separate from the Lamport counter, which jumps
+whenever the author sees someone else's op, so "highest counter seen" can't reveal a
+missing op and "highest unbroken `seq`" can.
