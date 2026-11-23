@@ -83,6 +83,8 @@ function Note({ id }: { id: string }) {
     let unsubscribe = () => {};
     let retitle: ReturnType<typeof setTimeout> | undefined;
     let saveTitle = () => {};
+    let onOffline = () => {};
+    let onOnline = () => {};
     void SyncClient.open({ doc: id, url: SYNC_URL }).then(async (c) => {
       const index = await notes;
       if (cancelled) return void c.close();
@@ -104,7 +106,13 @@ function Note({ id }: { id: string }) {
         clearTimeout(retitle);
         retitle = setTimeout(saveTitle, 500);
       });
-      c.connect();
+      // The browser says when the network goes and comes back. Without this a socket on
+      // a dead network can look open for minutes, and the dot would say "Synced".
+      onOffline = () => c.disconnect();
+      onOnline = () => c.connect();
+      addEventListener("offline", onOffline);
+      addEventListener("online", onOnline);
+      if (navigator.onLine) c.connect();
       setClient(c);
     });
     // The client has no status event yet; checking twice a second is plenty for a dot.
@@ -115,6 +123,8 @@ function Note({ id }: { id: string }) {
     return () => {
       cancelled = true;
       removeEventListener("pagehide", onHide);
+      removeEventListener("offline", onOffline);
+      removeEventListener("online", onOnline);
       clearInterval(timer);
       saveTitle(); // a title still waiting for its 500 ms is saved now, not dropped
       unsubscribe();
