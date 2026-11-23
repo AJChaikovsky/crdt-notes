@@ -203,3 +203,7 @@ relayed but never saved or merged, and it is not part of the CRDT (ADR-0012).
 after this character") instead of by a number. A number shifts whenever someone types
 before it; an anchor stays put through concurrent edits, which is why cursors are sent
 as anchors.
+
+**Share link.** A note's address, the app's URL with `#` and the note's random ID. With no
+accounts it is the only key to the note: anyone who has it can open and edit the note, and
+anyone who doesn't can't find it, because nothing lists notes across devices (ADR-0013).

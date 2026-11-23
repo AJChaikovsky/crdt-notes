@@ -185,3 +185,6 @@ runs each).
 | 2026-11-23 | Presence | The server doesn't announce a client leaving | 2 tests fail |
 | 2026-11-23 | Presence | The client ignores a peer leaving | 1 test fails |
 
+| 2026-11-23 | Note list | Reopening a note forgets its title | 1 test fails |
+| 2026-11-23 | Note list | Oldest note listed first | 2 tests fail |
+| 2026-11-23 | Note list | Retitling moves a note to the top | 2 tests fail |

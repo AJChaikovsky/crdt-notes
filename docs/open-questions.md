@@ -16,6 +16,10 @@ Terms are defined in `glossary.md`.
 3. Cursors are sent as "after character X" rather than as an index. Give a concrete
    sequence of two people typing where the index version shows a cursor in the wrong
    place.
+4. The note list is a cache kept separately from the notes. Name one way it can end up
+   disagreeing with them, and say why that never loses any text.
+5. Note IDs are 80 random bits instead of names like "shopping". With no accounts, what
+   would someone be able to do if IDs were short names?
 
 ## Phase 5: catching up with version vectors
 
