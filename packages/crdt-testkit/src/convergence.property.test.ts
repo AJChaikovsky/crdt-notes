@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { propertyParameters } from "./property.js";
 import { opKey } from "./simulator.js";
 import {
+  fastFugue,
   fugue,
   rga,
   type Implementation,
@@ -133,3 +134,4 @@ function convergence<O extends OpShape>(impl: Implementation<O>): void {
 
 convergence(rga);
 convergence(fugue);
+convergence(fastFugue);

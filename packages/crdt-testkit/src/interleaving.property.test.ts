@@ -1,6 +1,12 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { fugue, rga, type Implementation, type OpShape } from "./implementation.js";
+import {
+  fastFugue,
+  fugue,
+  rga,
+  type Implementation,
+  type OpShape,
+} from "./implementation.js";
 import { propertyParameters } from "./property.js";
 import { concurrentRuns, typeRuns, type ConcurrentRuns } from "./runs.js";
 import { opKey } from "./simulator.js";
@@ -37,3 +43,4 @@ interleaving(
   "forward runs",
 );
 interleaving(fugue, concurrentRuns(), "forward and backward runs");
+interleaving(fastFugue, concurrentRuns(), "forward and backward runs");

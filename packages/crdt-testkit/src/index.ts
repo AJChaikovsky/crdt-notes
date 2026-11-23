@@ -1,4 +1,5 @@
 export {
+  fastFugue,
   fugue,
   rga,
   type Implementation,

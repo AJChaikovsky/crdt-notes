@@ -1,4 +1,5 @@
 import {
+  FastFugue,
   Fugue,
   Rga,
   type FugueOp,
@@ -39,4 +40,10 @@ export const rga: Implementation<Op> = { name: "RGA", create: (id) => new Rga(id
 export const fugue: Implementation<FugueOp> = {
   name: "Fugue",
   create: (id) => new Fugue(id),
+};
+
+/** Fugue with a B-tree for positions (ADR-0006). Must behave exactly like `fugue`. */
+export const fastFugue: Implementation<FugueOp> = {
+  name: "FastFugue",
+  create: (id) => new FastFugue(id),
 };
