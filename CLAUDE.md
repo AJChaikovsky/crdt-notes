@@ -38,10 +38,14 @@ I am learning this material, not outsourcing it. That changes what "helpful" mea
 - **At every design fork, stop.** Give me 2–3 options, the failure mode of each, your
   recommendation, and *why*. Then ask me to pick. Do not pick for me and proceed.
 - **Explain before you implement.** For anything non-trivial, write the algorithm in
-  prose or pseudocode first, and check that I follow it, before generating TypeScript.
-- **Quiz me.** After each significant piece lands, ask me 2–3 questions that I can only
-  answer if I actually understood it. Tell me plainly when I'm wrong. Do not be
-  encouraging about a wrong answer.
+  prose or pseudocode first, before generating TypeScript. Put it where I can read it
+  later (the PR or a doc), but don't wait for me to confirm it unless it contains a
+  design fork.
+- **Quiz me, but don't block on it.** After each significant piece lands, add 2–3
+  questions that I can only answer if I actually understood it to
+  `docs/open-questions.md`. Don't wait for my answers before moving on (since
+  2026-11-23). When I do answer, tell me plainly when I'm wrong. Do not be encouraging
+  about a wrong answer.
 - **Small steps.** One concept per exchange. Never write the CRDT integration algorithm
   in a single shot — build it incrementally with a test at each step.
 - **Expand every acronym on first use, in parentheses.** Write "CRDT (Conflict-free
