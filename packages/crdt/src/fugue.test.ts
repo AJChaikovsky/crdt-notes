@@ -225,3 +225,27 @@ for (const Impl of [Fugue, FastFugue]) {
     });
   });
 }
+
+describe("FastFugue anchors", () => {
+  it("point at the same place after edits before them, and after their character is deleted", () => {
+    const bob = new FastFugue("B");
+    for (const char of "abc") bob.insertAt(bob.text().length, char);
+    const alice = new FastFugue("A");
+    const anchor = bob.anchorAt(2); // after "b"
+    expect(bob.indexOfAnchor(anchor)).toBe(2);
+    bob.insertAt(0, "x"); // "xabc"
+    expect(bob.indexOfAnchor(anchor)).toBe(3);
+    bob.deleteAt(2); // deletes "b": "xac"
+    expect(bob.indexOfAnchor(anchor)).toBe(2); // where "b" was, between "a" and "c"
+    expect(bob.indexOfAnchor(null)).toBe(0);
+    expect(alice.indexOfAnchor(anchor)).toBeNull(); // alice never received "b"
+  });
+
+  it("round-trip every index", () => {
+    const doc = new FastFugue("A");
+    for (let i = 0; i < 300; i += 1) doc.insertAt((i * 7) % (i + 1), "x");
+    for (let i = 0; i < 300; i += 13) doc.deleteAt(i % doc.text().length);
+    for (let i = 0; i <= doc.text().length; i += 1)
+      expect(doc.indexOfAnchor(doc.anchorAt(i))).toBe(i);
+  });
+});
