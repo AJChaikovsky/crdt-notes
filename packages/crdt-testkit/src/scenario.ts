@@ -1,4 +1,5 @@
 import fc from "fast-check";
+import type { Implementation, OpShape } from "./implementation.js";
 import { Simulator, type Edit } from "./simulator.js";
 
 /**
@@ -113,8 +114,12 @@ export interface EditCheck {
  * Runs the steps of `scenario` without draining, so replicas may still disagree and ops
  * may still be in flight.
  */
-export function runSteps(scenario: Scenario, options: RunOptions = {}): Simulator {
-  const sim = new Simulator(REPLICA_IDS.slice(0, scenario.replicas), options);
+export function runSteps<O extends OpShape>(
+  impl: Implementation<O>,
+  scenario: Scenario,
+  options: RunOptions = {},
+): Simulator<O> {
+  const sim = new Simulator(impl, REPLICA_IDS.slice(0, scenario.replicas), options);
   for (const s of scenario.steps) {
     if (s.kind === "edit") {
       const replica = s.replica % sim.size;
@@ -140,8 +145,12 @@ export function runSteps(scenario: Scenario, options: RunOptions = {}): Simulato
 }
 
 /** Runs `scenario` to the end, delivering everything, and returns the simulator. */
-export function run(scenario: Scenario, options: RunOptions = {}): Simulator {
-  const sim = runSteps(scenario, options);
+export function run<O extends OpShape>(
+  impl: Implementation<O>,
+  scenario: Scenario,
+  options: RunOptions = {},
+): Simulator<O> {
+  const sim = runSteps(impl, scenario, options);
   let i = 0;
   sim.deliverAll(() => scenario.drain[i++ % Math.max(scenario.drain.length, 1)] ?? 0);
   return sim;
