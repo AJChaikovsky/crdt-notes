@@ -30,7 +30,11 @@ importers:
         specifier: ^5.0.2
         version: 5.0.2(@types/node@26.6.3)(vite@8.3.1(@types/node@26.6.3))
 
-  packages/crdt: {}
+  packages/crdt:
+    devDependencies:
+      fast-check:
+        specifier: ^4.10.2
+        version: 4.10.2
 
   packages/crdt-testkit:
     dependencies:
