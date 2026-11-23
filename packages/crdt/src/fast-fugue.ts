@@ -1,4 +1,5 @@
 import { Clock } from "./clock.js";
+import { decodeSnapshot, encodeSnapshot, type SnapshotNode } from "./encoding.js";
 import type { FugueInsertOp, FugueOp } from "./fugue.js";
 import { compareIds, type Id, type ReplicaId } from "./id.js";
 import { PositionTree, type FugueNode } from "./position-tree.js";
@@ -149,6 +150,35 @@ export class FastFugue {
     return [...this.#order].map(({ id, char, deleted }) => ({ id, char, deleted }));
   }
 
+  /** The replica's whole state as text. Same format as `Fugue.snapshot` (ADR-0007). */
+  snapshot(): string {
+    const nodes: SnapshotNode[] = [];
+    // Pre-order, so every parent is listed before its children (ADR-0007 item 6).
+    const stack = [...this.#root].reverse();
+    for (let node = stack.pop(); node !== undefined; node = stack.pop()) {
+      const { id, char, parent, side, deleted, left, right } = node;
+      nodes.push({ id, char, parent, side, deleted });
+      stack.push(...[...right].reverse(), ...[...left].reverse());
+    }
+    return encodeSnapshot({ clock: this.#clock.counter, nodes, pending: this.#pending });
+  }
+
+  /**
+   * Rebuilds a replica from snapshot text, from either `FastFugue` or `Fugue`. Throws
+   * `DecodeError` if it isn't a valid snapshot. See `Fugue.load`.
+   */
+  static load(replica: ReplicaId, snapshot: string): FastFugue {
+    const data = decodeSnapshot(snapshot);
+    const doc = new FastFugue(replica);
+    doc.#clock.observe({ counter: data.clock, replica });
+    for (const { id, char, parent, side, deleted } of data.nodes) {
+      doc.#integrate({ kind: "insert", id, char, parent, side });
+      if (deleted) doc.#order.setDeleted(doc.#node(id));
+    }
+    for (const op of data.pending) doc.apply(op);
+    return doc;
+  }
+
   #ready(op: FugueOp): boolean {
     if (op.kind === "delete") return this.#nodes.has(key(op.target));
     return op.parent === null || this.#nodes.has(key(op.parent));
@@ -176,6 +206,8 @@ export class FastFugue {
     const node: FugueNode = {
       id: op.id,
       char: op.char,
+      parent: op.parent,
+      side: op.side,
       deleted: false,
       left: [],
       right: [],

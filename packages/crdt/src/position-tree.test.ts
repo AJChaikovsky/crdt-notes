@@ -30,6 +30,8 @@ function check(steps: readonly Step[], max: number): void {
     const node: FugueNode = {
       id: { counter: (counter += 1), replica: "A" },
       char: "x",
+      parent: null,
+      side: "right",
       deleted: false,
       left: [],
       right: [],

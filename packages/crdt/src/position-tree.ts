@@ -7,6 +7,9 @@ import type { Id } from "./id.js";
 export interface FugueNode {
   readonly id: Id;
   readonly char: string;
+  /** Where the insert op attached it, kept so a snapshot can attach it the same way. */
+  readonly parent: Id | null;
+  readonly side: "left" | "right";
   deleted: boolean;
   readonly left: FugueNode[];
   readonly right: FugueNode[];
