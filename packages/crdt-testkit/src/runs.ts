@@ -1,5 +1,6 @@
 import fc from "fast-check";
 import type { Id } from "@crdt-notes/crdt";
+import type { Implementation, OpShape } from "./implementation.js";
 import { Simulator } from "./simulator.js";
 
 /**
@@ -49,8 +50,11 @@ export function concurrentRuns(): fc.Arbitrary<ConcurrentRuns> {
  * `i`, then delivers everything. Returns the simulator and, for each run, its character
  * IDs in the order they read in the run's own text.
  */
-export function typeRuns(spec: ConcurrentRuns): { sim: Simulator; runIds: Id[][] } {
-  const sim = new Simulator(REPLICA_IDS.slice(0, spec.runs.length));
+export function typeRuns<O extends OpShape>(
+  impl: Implementation<O>,
+  spec: ConcurrentRuns,
+): { sim: Simulator<O>; runIds: Id[][] } {
+  const sim = new Simulator(impl, REPLICA_IDS.slice(0, spec.runs.length));
   [...spec.base].forEach((char, i) => sim.edit(0, { kind: "insert", index: i, char }));
   sim.deliverAll();
 

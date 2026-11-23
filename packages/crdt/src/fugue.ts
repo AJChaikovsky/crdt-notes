@@ -92,6 +92,40 @@ export class Fugue {
     return op;
   }
 
+  /**
+   * Inserts `char` so it becomes the visible character at `index`, the way an editor
+   * addresses a keystroke, and returns the op to send to peers. Throws a `RangeError`
+   * outside `0..text().length`.
+   *
+   * This reference version finds the cursor with a full walk, so it costs time
+   * proportional to the document's length (ADR-0005).
+   *
+   * @example Alice and Bob both start from "ac" and each type at index 1 at the same
+   * time. Both replicas end with the same text, with each insert between "a" and "c":
+   * ```ts
+   * const aliceB = alice.insertAt(1, "b"); // alice: "abc"
+   * const bobX = bob.insertAt(1, "x");     // bob: "axc"
+   * alice.apply(bobX);
+   * bob.apply(aliceB);
+   * alice.text() === bob.text();           // "abxc" or "axbc", the same on both
+   * ```
+   */
+  insertAt(index: number, char: string): FugueInsertOp {
+    const ids = this.visibleIds();
+    if (index < 0 || index > ids.length) throw new RangeError(`no position ${index}`);
+    return this.insert(index === 0 ? null : (ids[index - 1] ?? null), char);
+  }
+
+  /**
+   * Deletes the visible character at `index` and returns the op to send to peers. Throws
+   * a `RangeError` if there is no character there. A full walk, like `insertAt`.
+   */
+  deleteAt(index: number): DeleteOp {
+    const target = this.visibleIds()[index];
+    if (target === undefined) throw new RangeError(`no character at ${index}`);
+    return this.delete(target);
+  }
+
   /** Creates a local delete of `target`, applies it, and returns it to send to peers. */
   delete(target: Id): DeleteOp {
     const op: DeleteOp = { kind: "delete", id: this.#clock.tick(), target };

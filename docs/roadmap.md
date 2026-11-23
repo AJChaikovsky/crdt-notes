@@ -125,4 +125,7 @@ README.
 
 Things that will occur to you mid-project. Write them here and move on.
 
-- (add as they come up)
+- **Runs in FastFugue** (parked 2026-11-23, AJ's pick). Store a stretch typed in one go
+  as one B-tree entry instead of one entry per character. It would cut memory and add
+  speed, but the 1 s target is met without it (about 330 ms on the full trace,
+  ADR-0006). Revisit if memory becomes a problem.

@@ -135,3 +135,26 @@ half-read, which is why runs don't interleave. ADR-0004.
 **Right origin.** The character immediately to the right of the cursor when typing,
 tombstones included. RGA ignores it; Fugue uses it to decide where a character typed
 before existing text belongs.
+
+## Performance (Phase 4)
+
+**Editing trace.** A recording of a real editing session, one entry per keystroke: at
+visible position `pos`, delete `del` characters, then insert some text. Replaying one
+through a CRDT gives a realistic benchmark, because real typing has long runs and strong
+locality (the next keystroke is usually right after the last one), which made-up
+workloads lack. Without a trace, it's easy to optimise for a workload nobody produces.
+This project uses the automerge-paper trace (ADR-0005).
+
+**Local vs remote replay.** Local replay is one replica typing the trace itself, so every
+keystroke has to turn a cursor index into a position in the CRDT. Remote replay is
+another replica applying the resulting ops, which already name their parent by ID. The
+two can differ by orders of magnitude, so the benchmark times both.
+
+**B-tree (position tree).** A balanced tree whose nodes each hold many entries (here up
+to 64), so it stays only a few levels deep even for a huge document. Each node also
+stores how many visible characters are under it, which lets you find "the character at
+index i" by walking down and subtracting counts, in log n steps instead of reading the
+whole document. Without it, every keystroke costs time proportional to the document's
+length, which made the reference Fugue take an estimated 1.5 hours on the trace
+(ADR-0006).
+

@@ -1,3 +1,11 @@
+export {
+  fastFugue,
+  fugue,
+  rga,
+  type Implementation,
+  type ListCrdt,
+  type OpShape,
+} from "./implementation.js";
 export { propertyParameters } from "./property.js";
 export { opKey, Simulator, type Delivery, type Edit, type SentOp } from "./simulator.js";
 export {

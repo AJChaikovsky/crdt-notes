@@ -48,3 +48,11 @@ ADR-0001 planned to fix this with Fugue in Phase 3.
   place of origin.
 - Built in small steps: inserts first, then deletes and held ops, then the testkit and
   all properties against both.
+- The shared shape the testkit drives (`ListCrdt` and `Implementation` in
+  `packages/crdt-testkit/src/implementation.ts`) lives in the testkit, not the core
+  (AJ's pick, 2026-09-29). Only the tests use more than one implementation, and RGA is
+  expected to retire after Phase 3. Rejected: exporting it from the core, which would
+  make it public API before the editor needs it; and a copy of the property files per
+  implementation, since the copies would drift. It generalises over the op type, so
+  each implementation keeps its own ops. It can move to the core if the editor ever
+  needs to swap implementations.
