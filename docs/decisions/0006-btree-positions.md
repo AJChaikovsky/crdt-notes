@@ -18,8 +18,9 @@ insert shifts the array, and finding a character by ID means scanning it.
 ## Decision
 
 1. **A B-tree of runs** (AJ's pick over a flat array of runs and over counts stored in the
-   Fugue tree). Built in two steps: first one entry per character, then runs. Step 1
-   met the target on its own (below), so runs are a separate decision.
+   Fugue tree). Planned in two steps: first one entry per character, then runs. Step 1
+   met the target on its own (below), so AJ parked runs (2026-11-23, see
+   `../roadmap.md#parked`).
 2. **`FastFugue` sits beside `Fugue`.** It keeps the same Fugue tree (`left` and `right`
    children sorted by ID) to decide where a character belongs. A `PositionTree` holds
    the same characters in document order, tombstones included. `Fugue` is unchanged and
