@@ -45,7 +45,15 @@ importers:
         specifier: ^4.10.2
         version: 4.10.2
 
-  packages/sync-protocol: {}
+  packages/sync-protocol:
+    dependencies:
+      '@crdt-notes/crdt':
+        specifier: workspace:*
+        version: link:../crdt
+    devDependencies:
+      fast-check:
+        specifier: ^4.10.2
+        version: 4.10.2
 
 packages:
 
