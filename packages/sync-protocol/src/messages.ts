@@ -3,9 +3,20 @@ import {
   FORMAT_VERSION,
   opFromValue,
   opToValue,
+  type Id,
   type ReplicaId,
 } from "@crdt-notes/crdt";
 import type { Entry, VersionVector } from "./log.js";
+
+/**
+ * Where someone's selection is, as anchors (`FastFugue.anchorAt`) rather than indices,
+ * so it stays put while others edit (ADR-0012). `anchor` is where the selection started
+ * and `head` where the cursor is; they are equal for a plain cursor.
+ */
+export interface Selection {
+  readonly anchor: Id | null;
+  readonly head: Id | null;
+}
 
 /**
  * Everything a client and the server say to each other (ADR-0008). A session opens with
@@ -18,7 +29,16 @@ export type Message =
   /** Server to client: the session is open, and the server holds `vector`. */
   | { readonly type: "welcome"; readonly vector: VersionVector }
   /** Either way: entries the other side may not have. */
-  | { readonly type: "ops"; readonly entries: readonly Entry[] };
+  | { readonly type: "ops"; readonly entries: readonly Entry[] }
+  /**
+   * Either way: where `replica`'s selection is now, or `null` once they have left. Relayed
+   * to the document's other clients, never stored: presence isn't part of the document.
+   */
+  | {
+      readonly type: "presence";
+      readonly replica: ReplicaId;
+      readonly selection: Selection | null;
+    };
 
 /**
  * Turns a message into versioned JSON text. A vector is written as `[replica, seq]`
@@ -47,6 +67,19 @@ export function encodeMessage(message: Message): string {
       });
     case "welcome":
       return JSON.stringify({ v, type: "welcome", vector: [...message.vector] });
+    case "presence":
+      return JSON.stringify({
+        v,
+        type: "presence",
+        replica: message.replica,
+        selection:
+          message.selection === null
+            ? null
+            : {
+                anchor: idValue(message.selection.anchor),
+                head: idValue(message.selection.head),
+              },
+      });
     case "ops":
       return JSON.stringify({
         v,
@@ -74,7 +107,24 @@ export function decodeMessage(text: string): Message {
     exactKeys(value, ["v", "type", "vector"], "welcome");
     return { type, vector: readVector(value["vector"], "welcome.vector") };
   }
-  if (type !== "ops") fail(`message.type must be "hello", "welcome" or "ops"`);
+  if (type === "presence") {
+    exactKeys(value, ["v", "type", "replica", "selection"], "presence");
+    const replica = value["replica"];
+    if (typeof replica !== "string") fail("presence.replica must be a string");
+    if (value["selection"] === null) return { type, replica, selection: null };
+    const selection = record(value["selection"], "presence.selection");
+    exactKeys(selection, ["anchor", "head"], "presence.selection");
+    return {
+      type,
+      replica,
+      selection: {
+        anchor: readAnchor(selection["anchor"], "presence.selection.anchor"),
+        head: readAnchor(selection["head"], "presence.selection.head"),
+      },
+    };
+  }
+  if (type !== "ops")
+    fail(`message.type must be "hello", "welcome", "ops" or "presence"`);
   exactKeys(value, ["v", "type", "entries"], "ops");
   const entries = list(value["entries"], "ops.entries").map((item, i) => {
     const where = `ops.entries[${i}]`;
@@ -99,6 +149,19 @@ export function decodeEntry(text: string): Entry {
   if (value["v"] !== FORMAT_VERSION) fail("unsupported version");
   exactKeys(value, ["v", "seq", "op"], "entry");
   return { seq: seq(value["seq"], "entry.seq"), op: opFromValue(value["op"]) };
+}
+
+function idValue(id: Id | null): { counter: number; replica: string } | null {
+  return id === null ? null : { counter: id.counter, replica: id.replica };
+}
+
+function readAnchor(value: unknown, where: string): Id | null {
+  if (value === null) return null;
+  const id = record(value, where);
+  exactKeys(id, ["counter", "replica"], where);
+  const replica = id["replica"];
+  if (typeof replica !== "string") fail(`${where}.replica must be a string`);
+  return { counter: seq(id["counter"], `${where}.counter`), replica };
 }
 
 function readVector(value: unknown, where: string): VersionVector {

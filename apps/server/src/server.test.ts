@@ -61,6 +61,8 @@ async function connect(port: number) {
         else resolve(ready);
       }),
     closed,
+    /** Messages received but not yet taken with `next`. */
+    queued: () => inbox.length,
   };
 }
 
@@ -172,6 +174,62 @@ describe("sync server", () => {
     const early = await connect(port);
     early.send({ type: "ops", entries: [] });
     expect(await early.closed).toBe(1008);
+  });
+});
+
+describe("presence", () => {
+  const cursor = (counter: number) => ({
+    anchor: { counter, replica: "A" },
+    head: { counter, replica: "A" },
+  });
+
+  it("relays cursors to the other clients, shows newcomers, and says when one leaves", async () => {
+    const { port } = await start();
+    const a = await connect(port);
+    const b = await connect(port);
+    a.send({ type: "hello", doc: "notes", vector: new Map() });
+    b.send({ type: "hello", doc: "notes", vector: new Map() });
+    await a.next();
+    await b.next();
+
+    a.send({ type: "presence", replica: "A", selection: cursor(1) });
+    expect(await b.next()).toEqual({
+      type: "presence",
+      replica: "A",
+      selection: cursor(1),
+    });
+
+    const c = await connect(port);
+    c.send({ type: "hello", doc: "notes", vector: new Map() });
+    expect((await c.next()).type).toBe("welcome");
+    expect(await c.next()).toEqual({
+      type: "presence",
+      replica: "A",
+      selection: cursor(1),
+    });
+
+    sockets[0]?.close(); // a leaves
+    expect(await b.next()).toEqual({ type: "presence", replica: "A", selection: null });
+    expect(await c.next()).toEqual({ type: "presence", replica: "A", selection: null });
+  });
+
+  it("doesn't save cursors: a restart forgets them", async () => {
+    const first = await start();
+    const a = await connect(first.port);
+    a.send({ type: "hello", doc: "notes", vector: new Map() });
+    await a.next();
+    a.send({ type: "presence", replica: "A", selection: cursor(1) });
+    a.send({ type: "hello", doc: "notes", vector: new Map() }); // refused: flushes the above
+    await a.closed;
+    await first.close();
+    const second = await start();
+    const b = await connect(second.port);
+    b.send({ type: "hello", doc: "notes", vector: new Map() });
+    expect((await b.next()).type).toBe("welcome");
+    b.send({ type: "presence", replica: "B", selection: null });
+    b.send({ type: "hello", doc: "notes", vector: new Map() });
+    expect(await b.closed).toBe(1008);
+    expect(b.queued()).toBe(0); // no remembered cursor from before the restart
   });
 });
 
