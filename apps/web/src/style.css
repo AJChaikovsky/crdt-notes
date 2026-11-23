@@ -1,0 +1,50 @@
+:root {
+  color-scheme: light dark;
+  --bg: #fdfcfa;
+  --fg: #1f1d1a;
+  --muted: #6b6760;
+  --live: #2f7d4f;
+  font-family: system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1a1917;
+    --fg: #ebe8e2;
+    --muted: #9a958c;
+    --live: #6fcf97;
+  }
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+}
+main {
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: 1.5rem 1rem;
+}
+header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+h1 {
+  font-size: 1.25rem;
+  margin: 0 0 1rem;
+}
+.status {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+.status.live {
+  color: var(--live);
+}
+.editor .cm-editor {
+  min-height: 60vh;
+  font-size: 1rem;
+}
+.editor .cm-editor.cm-focused {
+  outline: none;
+}

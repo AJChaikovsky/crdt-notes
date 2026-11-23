@@ -1,4 +1,10 @@
-import { DecodeError, FastFugue, type FugueOp, type ReplicaId } from "@crdt-notes/crdt";
+import {
+  DecodeError,
+  FastFugue,
+  type FugueOp,
+  type ReplicaId,
+  type TextChange,
+} from "@crdt-notes/crdt";
 import {
   decodeMessage,
   encodeMessage,
@@ -52,7 +58,9 @@ export class SyncClient {
   readonly #doc: FastFugue;
   readonly #log: OpLog;
   readonly #storage: Storage;
-  readonly #listeners = new Set<() => void>();
+  readonly #listeners = new Set<(change: TextChange, remote: boolean) => void>();
+  /** True while applying ops from the server, so listeners can tell them apart. */
+  #applyingRemote = false;
 
   /** Entries not yet handed to a write. */
   readonly #unsaved: Entry[] = [];
@@ -83,6 +91,9 @@ export class SyncClient {
     this.#doc = doc;
     this.#log = log;
     this.#storage = storage;
+    doc.subscribe((change) => {
+      for (const listener of this.#listeners) listener(change, this.#applyingRemote);
+    });
   }
 
   /**
@@ -132,8 +143,12 @@ export class SyncClient {
     this.#local(this.#doc.deleteAt(index));
   }
 
-  /** Calls `listener` after every change, local or remote. Returns an unsubscribe. */
-  onChange(listener: () => void): () => void {
+  /**
+   * Calls `listener` with every change to the visible text: `remote` is false for this
+   * device's own `insertAt` and `deleteAt`, true for edits from other devices, which an
+   * editor must apply to stay in step (ADR-0011). Returns an unsubscribe.
+   */
+  onChange(listener: (change: TextChange, remote: boolean) => void): () => void {
     this.#listeners.add(listener);
     return () => this.#listeners.delete(listener);
   }
@@ -184,14 +199,13 @@ export class SyncClient {
     this.#added([this.#log.append(op)]);
   }
 
-  /** Entries just added to the log and the document: save them, then tell listeners. */
+  /** Entries just added to the log and the document: save them. */
   #added(entries: readonly Entry[]): void {
     for (const entry of entries) {
       this.#unsaved.push(entry);
       this.#notSaved.add(entry);
     }
     this.#writes = this.#writes.then(() => this.#flush());
-    for (const listener of this.#listeners) listener();
   }
 
   async #flush(): Promise<void> {
@@ -270,7 +284,12 @@ export class SyncClient {
       return;
     }
     const fresh = message.entries.filter((entry) => this.#log.add(entry));
-    for (const entry of fresh) this.#doc.apply(entry.op);
+    this.#applyingRemote = true;
+    try {
+      for (const entry of fresh) this.#doc.apply(entry.op);
+    } finally {
+      this.#applyingRemote = false;
+    }
     if (fresh.length > 0) this.#added(fresh);
   }
 

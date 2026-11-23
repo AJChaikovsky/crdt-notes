@@ -119,6 +119,26 @@ export class PositionTree {
     throw new Error("visible counts out of step");
   }
 
+  /**
+   * How many visible characters come before `node`: its visible index if it is visible,
+   * or where it would be if it were. Walks up from its leaf, so about log n steps.
+   */
+  indexOf(node: FugueNode): number {
+    let index = 0;
+    for (const item of node.leaf.items) {
+      if (item === node) break;
+      if (!item.deleted) index += 1;
+    }
+    let child: Leaf | Inner = node.leaf;
+    for (let up = child.parent; up !== null; child = up, up = up.parent) {
+      for (const sibling of up.children) {
+        if (sibling === child) break;
+        index += sibling.visible;
+      }
+    }
+    return index;
+  }
+
   /** Inserts `node` straight after `anchor`, or at the very start if `anchor` is null. */
   insertAfter(anchor: FugueNode | null, node: FugueNode): void {
     if (anchor === null) this.#insert(this.#first, 0, node);

@@ -7,6 +7,13 @@ instead of being asked in chat. When you answer one, move it with your answer in
 
 Terms are defined in `glossary.md`.
 
+## Phase 6: the editor
+
+1. A CodeMirror transaction replaces positions 2–4 with "x" and inserts "y" at 7, both
+   in positions of the old text. Why does `applyToCrdt` apply the insert at 7 first?
+2. A remote edit is applied to the editor but kept out of its undo history. What would
+   Ctrl+Z do to the other person's text if it weren't?
+
 ## Phase 5: catching up with version vectors
 
 1. Bob's ops have Lamport counters 1, 2, 9 and 10. Why can't a vector of Lamport

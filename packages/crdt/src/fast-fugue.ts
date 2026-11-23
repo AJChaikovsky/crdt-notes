@@ -26,6 +26,14 @@ function rightmost(node: FugueNode): FugueNode {
 }
 
 /**
+ * One change to the visible text, at a visible index: what an editor showing the
+ * document must do to stay in step (ADR-0011).
+ */
+export type TextChange =
+  | { readonly kind: "insert"; readonly index: number; readonly char: string }
+  | { readonly kind: "delete"; readonly index: number };
+
+/**
  * The same CRDT (Conflict-free Replicated Data Type) as `Fugue`, with the same ops and
  * the same document for the same inputs, but fast enough for long documents (ADR-0006).
  *
@@ -55,6 +63,7 @@ export class FastFugue {
   readonly #order = new PositionTree();
   /** Remote ops that arrived before their parent or target, in arrival order (P4). */
   readonly #pending: FugueOp[] = [];
+  readonly #listeners = new Set<(change: TextChange) => void>();
 
   constructor(replica: ReplicaId) {
     this.#clock = new Clock(replica);
@@ -126,6 +135,26 @@ export class FastFugue {
     }
   }
 
+  /**
+   * Calls `listener` with every change to the visible text from now on, local or
+   * remote, including held-back ops applied once their parent arrives. Each change's
+   * index is in the text as it was just before that change. Returns an unsubscribe.
+   *
+   * @example Bob's editor shows the document. Alice's concurrent insert arrives, and the
+   * editor applies exactly that one character instead of replacing all its text:
+   * ```ts
+   * bob.subscribe((change) => {
+   *   if (change.kind === "insert") editor.insert(change.index, change.char);
+   *   else editor.remove(change.index);
+   * });
+   * bob.apply(aliceInsert); // listener gets { kind: "insert", index: 1, char: "x" }
+   * ```
+   */
+  subscribe(listener: (change: TextChange) => void): () => void {
+    this.#listeners.add(listener);
+    return () => this.#listeners.delete(listener);
+  }
+
   /** How many remote ops are held back waiting for their parent or target. */
   get pendingCount(): number {
     return this.#pending.length;
@@ -185,8 +214,16 @@ export class FastFugue {
   }
 
   #applyReady(op: FugueOp): void {
-    if (op.kind === "delete") this.#order.setDeleted(this.#node(op.target));
-    else this.#integrate(op);
+    if (op.kind === "insert") return this.#integrate(op);
+    const target = this.#node(op.target);
+    if (target.deleted) return; // deleting twice changes nothing
+    const index = this.#listeners.size > 0 ? this.#order.indexOf(target) : 0;
+    this.#order.setDeleted(target);
+    this.#emit({ kind: "delete", index });
+  }
+
+  #emit(change: TextChange): void {
+    for (const listener of this.#listeners) listener(change);
   }
 
   /**
@@ -228,6 +265,8 @@ export class FastFugue {
     }
     siblings.splice(at, 0, node);
     this.#nodes.set(key(op.id), node);
+    if (this.#listeners.size > 0)
+      this.#emit({ kind: "insert", index: this.#order.indexOf(node), char: node.char });
   }
 
   #node(id: Id): FugueNode {

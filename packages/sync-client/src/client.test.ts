@@ -110,6 +110,30 @@ describe("SyncClient sync", () => {
     await eventually(() => expect(alice.text()).toBe("hi!"));
   });
 
+  it("reports remote edits as changes an editor can replay", async () => {
+    server = await startServer({ port: 0, dataDir });
+    const alice = await open(new IDBFactory());
+    const bob = await open(new IDBFactory());
+    let mirror = "";
+    const remote: boolean[] = [];
+    bob.onChange((change, isRemote) => {
+      remote.push(isRemote);
+      mirror =
+        change.kind === "insert"
+          ? mirror.slice(0, change.index) + change.char + mirror.slice(change.index)
+          : mirror.slice(0, change.index) + mirror.slice(change.index + 1);
+    });
+    type(bob, 0, "bb");
+    alice.connect();
+    bob.connect();
+    type(alice, 0, "aaa");
+    alice.deleteAt(1);
+    await eventually(() => expect(bob.text()).toBe(alice.text()));
+    expect(mirror).toBe(bob.text());
+    expect(remote.slice(0, 2)).toEqual([false, false]);
+    expect(remote.slice(2).every(Boolean)).toBe(true);
+  });
+
   it("merges edits made offline on both sides when they reconnect", async () => {
     server = await startServer({ port: 0, dataDir });
     const alice = await open(new IDBFactory());

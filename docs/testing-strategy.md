@@ -175,4 +175,9 @@ runs each).
 | 2026-11-23 | Sync client | A failed save is dropped instead of retried | The retry test hangs until its timeout |
 | 2026-11-23 | Sync client | A local edit is sent before it is saved | 1 test fails |
 | 2026-11-23 | Sync client | No reconnect after the connection drops | 1 test fails (server restart) |
+| 2026-11-23 | Editor binding | `indexOf` ignores earlier subtrees | 1 test fails (the B-tree text-change property) |
+| 2026-11-23 | Editor binding | `indexOf` counts tombstones | 3 tests fail |
+| 2026-11-23 | Editor binding | A second delete of the same character is reported again | 1 test fails |
+| 2026-11-23 | Editor binding | Remote edits are flagged as local | 1 test fails |
+| 2026-11-23 | Editor binding | A transaction's changes are applied first to last | 2 tests fail |
 

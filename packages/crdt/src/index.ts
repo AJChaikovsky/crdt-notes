@@ -16,6 +16,6 @@ export {
   type SnapshotNode,
 } from "./encoding.js";
 export { compareIds, type Id, type ReplicaId } from "./id.js";
-export { FastFugue } from "./fast-fugue.js";
+export { FastFugue, type TextChange } from "./fast-fugue.js";
 export { Fugue, type FugueInsertOp, type FugueOp } from "./fugue.js";
 export { Rga, type DeleteOp, type InsertOp, type ItemView, type Op } from "./rga.js";
