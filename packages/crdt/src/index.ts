@@ -10,6 +10,8 @@ export {
   decodeOp,
   encodeOp,
   FORMAT_VERSION,
+  opFromValue,
+  opToValue,
   type SnapshotData,
   type SnapshotNode,
 } from "./encoding.js";
