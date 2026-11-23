@@ -12,6 +12,14 @@ Terms are defined in `glossary.md`.
 1. In the reference `Fugue` class, why does one local keystroke cost time proportional
    to the document's length, even though attaching the node to the tree takes constant
    time?
+2. Remote replay was already fast in the reference `Fugue` (15 ms for 20,000 edits) while
+   local replay took 42.8 s. What does a remote op carry that makes it cheap to apply?
+3. In `PositionTree`, how does storing a visible count in every node let you find the
+   character at index 52,301 without reading the characters before it?
+4. A new right child that has no bigger sibling goes "after the end of its parent's
+   subtree", not straight after its parent. Draw a small Fugue tree where those two
+   places differ.
+5. Why must that subtree end (`rightmost`) be computed *before* the new node is attached?
 
 ## Phase 3: Fugue and P7 (from PR #17)
 
