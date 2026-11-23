@@ -16,6 +16,8 @@ Terms are defined in `glossary.md`.
 3. The server writes each entry to disk before relaying it. If it relayed first and
    crashed before writing, why would the document still converge, and what would the
    next handshake have to do?
+4. The client saves an op before sending it. Describe step by step how the two replicas
+   end up permanently different if it sent first and the tab was killed before saving.
 
 ## P8 and P9: encoding and snapshots
 
