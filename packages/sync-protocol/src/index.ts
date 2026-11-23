@@ -3,4 +3,10 @@
  * each side keeps, its version vector, and the messages they exchange.
  */
 export { OpLog, type Entry, type VersionVector } from "./log.js";
-export { decodeMessage, encodeMessage, type Message } from "./messages.js";
+export {
+  decodeEntry,
+  decodeMessage,
+  encodeEntry,
+  encodeMessage,
+  type Message,
+} from "./messages.js";
