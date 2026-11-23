@@ -1,0 +1,19 @@
+{
+  "name": "@crdt-notes/server",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Relays sync messages between clients and keeps each document's op log on disk.",
+  "type": "module",
+  "exports": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@crdt-notes/crdt": "workspace:*",
+    "@crdt-notes/sync-protocol": "workspace:*",
+    "ws": "8.19.0"
+  },
+  "devDependencies": {
+    "@types/ws": "8.18.1"
+  }
+}

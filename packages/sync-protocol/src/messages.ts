@@ -85,6 +85,22 @@ export function decodeMessage(text: string): Message {
   return { type, entries };
 }
 
+/**
+ * One entry as a line of versioned JSON, for storing an op log as a file with one entry
+ * per line (the server does). `decodeEntry` reads it back.
+ */
+export function encodeEntry({ seq, op }: Entry): string {
+  return JSON.stringify({ v: FORMAT_VERSION, seq, op: opToValue(op) });
+}
+
+/** Reads a line written by `encodeEntry`. Throws `DecodeError` for anything else. */
+export function decodeEntry(text: string): Entry {
+  const value = record(parse(text), "entry");
+  if (value["v"] !== FORMAT_VERSION) fail("unsupported version");
+  exactKeys(value, ["v", "seq", "op"], "entry");
+  return { seq: seq(value["seq"], "entry.seq"), op: opFromValue(value["op"]) };
+}
+
 function readVector(value: unknown, where: string): VersionVector {
   const vector = new Map<ReplicaId, number>();
   list(value, where).forEach((pair, i) => {

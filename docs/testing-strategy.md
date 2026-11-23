@@ -166,4 +166,8 @@ runs each).
 | 2026-11-23 | OpLog (sync) | The vector is each author's highest `seq` instead of the end of the unbroken run | 2 tests fail (vector model, and the exchange loses ops behind a gap) |
 | 2026-11-23 | OpLog (sync) | `missing` leaves out entries ahead of a gap | 1 test fails (exchange) |
 | 2026-11-23 | OpLog (sync) | `missing` skips one author entirely | 1 test fails (exchange) |
+| 2026-11-23 | Sync server | Accepted entries aren't saved to disk | 1 test fails (restart) |
+| 2026-11-23 | Sync server | A connecting client isn't sent what it lacks | 2 tests fail |
+| 2026-11-23 | Sync server | A cut-off last line is dropped but not truncated | 1 test fails |
+| 2026-11-23 | Sync server | New entries are sent back to their sender instead of the others | 3 tests fail |
 

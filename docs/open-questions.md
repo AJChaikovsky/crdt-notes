@@ -13,6 +13,9 @@ Terms are defined in `glossary.md`.
    counters tell the server that op 9 is missing, when a vector of `seq` numbers can?
 2. A log holds Bob's ops 1, 2 and 4. Its vector says Bob: 2. What goes wrong if it says
    Bob: 4 instead, and in what real situation could that happen?
+3. The server writes each entry to disk before relaying it. If it relayed first and
+   crashed before writing, why would the document still converge, and what would the
+   next handshake have to do?
 
 ## P8 and P9: encoding and snapshots
 
