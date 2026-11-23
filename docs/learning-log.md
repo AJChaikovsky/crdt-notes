@@ -95,15 +95,7 @@ The shortest versions of the ideas, in your own words, pulled from the answers b
 
 ### Still open: not answered yet
 
-From PR #17 (P1–P7 run against both RGA and Fugue):
-
-1. Fugue was changed so every local insert became a right child of the character before
-   the cursor. P5 failed even with one replica typing alone. Why?
-2. In the Fugue corpus case the result is Alice's run and then Bob's. Why that order, and
-   what would change if Bob's replica ID were "0" instead of "B"?
-
-Also optional and still open: rewriting ADR-0003's Decision section (holding early ops)
-in your own words. It's currently in Claude's words.
+Moved to `open-questions.md` on 2026-11-23. Unanswered questions now live there.
 
 ### Checkpoint questions: where you stand
 
