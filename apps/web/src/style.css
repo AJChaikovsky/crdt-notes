@@ -48,3 +48,26 @@ h1 {
 .editor .cm-editor.cm-focused {
   outline: none;
 }
+.peer-caret {
+  position: relative;
+  margin-left: -1px;
+  border-left: 2px solid;
+}
+.peer-caret::after {
+  content: attr(data-label);
+  position: absolute;
+  bottom: 100%;
+  left: -2px;
+  padding: 0 0.25rem;
+  border-radius: 0.25rem 0.25rem 0.25rem 0;
+  background: var(--peer);
+  color: white;
+  font:
+    0.6875rem/1.4 system-ui,
+    sans-serif;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.peer-selection {
+  background: color-mix(in srgb, var(--peer) 20%, transparent);
+}

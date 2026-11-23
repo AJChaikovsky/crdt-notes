@@ -155,6 +155,36 @@ export class FastFugue {
     return () => this.#listeners.delete(listener);
   }
 
+  /**
+   * A position that survives other people's edits: the ID of the character just before
+   * visible `index`, or `null` for the very start. Used for cursors (ADR-0012). An index
+   * would point at the wrong place as soon as someone typed before it.
+   *
+   * @example Bob's cursor is after "ab" in "abc". Alice concurrently types "x" at the
+   * start. The index 2 now points between "a" and "b"; the anchor still means "after b":
+   * ```ts
+   * const anchor = bob.anchorAt(2);      // the ID of "b"
+   * bob.apply(aliceTypesXAtStart);       // "xabc"
+   * bob.indexOfAnchor(anchor);           // 3
+   * ```
+   */
+  anchorAt(index: number): Id | null {
+    if (index === 0) return null;
+    return this.#order.atVisible(index - 1).id;
+  }
+
+  /**
+   * The visible index an anchor from `anchorAt` points to now: just after its character,
+   * or where that character was if it has been deleted. `null` if this replica hasn't
+   * received that character yet.
+   */
+  indexOfAnchor(anchor: Id | null): number | null {
+    if (anchor === null) return 0;
+    const node = this.#nodes.get(key(anchor));
+    if (node === undefined) return null;
+    return this.#order.indexOf(node) + (node.deleted ? 0 : 1);
+  }
+
   /** How many remote ops are held back waiting for their parent or target. */
   get pendingCount(): number {
     return this.#pending.length;

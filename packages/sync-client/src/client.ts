@@ -11,6 +11,7 @@ import {
   OpLog,
   type Entry,
   type Message,
+  type Selection,
 } from "@crdt-notes/sync-protocol";
 import { Storage } from "./storage.js";
 
@@ -78,6 +79,13 @@ export class SyncClient {
   /** `connect()` was called and `disconnect()` wasn't: keep reconnecting. */
   #wantOnline = false;
   #retry: ReturnType<typeof setTimeout> | null = null;
+
+  /** This device's selection, sent to the others; see `setSelection`. */
+  #selection: Selection | null = null;
+  #presenceTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Other devices' selections, by replica. Cleared when the connection drops. */
+  readonly #peers = new Map<ReplicaId, Selection>();
+  readonly #presenceListeners = new Set<() => void>();
 
   private constructor(
     options: ClientOptions,
@@ -153,6 +161,53 @@ export class SyncClient {
     return () => this.#listeners.delete(listener);
   }
 
+  /**
+   * Tells the other devices where this person's selection is: `anchor` where it
+   * started, `head` where the cursor is (equal for a plain cursor), as visible indices.
+   * Sent as anchors, so it stays put while others type (ADR-0012). Calls in quick
+   * succession are sent at most every 50 ms.
+   */
+  setSelection(anchor: number, head: number): void {
+    this.#selection = {
+      anchor: this.#doc.anchorAt(anchor),
+      head: this.#doc.anchorAt(head),
+    };
+    if (this.#presenceTimer !== null) return;
+    this.#presenceTimer = setTimeout(() => {
+      this.#presenceTimer = null;
+      this.#sendPresence();
+    }, 50);
+  }
+
+  /**
+   * Where the other devices' selections are now, as visible indices. Leaves out anyone
+   * whose cursor sits next to a character this device hasn't received yet.
+   */
+  peers(): { replica: ReplicaId; anchor: number; head: number }[] {
+    const out: { replica: ReplicaId; anchor: number; head: number }[] = [];
+    for (const [replica, selection] of this.#peers) {
+      const anchor = this.#doc.indexOfAnchor(selection.anchor);
+      const head = this.#doc.indexOfAnchor(selection.head);
+      if (anchor !== null && head !== null) out.push({ replica, anchor, head });
+    }
+    return out;
+  }
+
+  /** Calls `listener` whenever another device's selection moves, appears or leaves. */
+  onPresence(listener: () => void): () => void {
+    this.#presenceListeners.add(listener);
+    return () => this.#presenceListeners.delete(listener);
+  }
+
+  #sendPresence(): void {
+    if (this.#live && this.#selection !== null)
+      this.#send({ type: "presence", replica: this.replica, selection: this.#selection });
+  }
+
+  #presenceChanged(): void {
+    for (const listener of this.#presenceListeners) listener();
+  }
+
   /** Goes online, and stays online: reconnects whenever the connection drops. */
   connect(): void {
     this.#wantOnline = true;
@@ -162,6 +217,8 @@ export class SyncClient {
   /** Goes offline. Edits keep working and are sent on the next `connect()`. */
   disconnect(): void {
     this.#wantOnline = false;
+    if (this.#presenceTimer !== null) clearTimeout(this.#presenceTimer);
+    this.#presenceTimer = null;
     if (this.#retry !== null) clearTimeout(this.#retry);
     this.#retry = null;
     this.#socket?.close();
@@ -251,6 +308,10 @@ export class SyncClient {
       if (this.#socket !== socket) return;
       this.#socket = null;
       this.#live = false;
+      if (this.#peers.size > 0) {
+        this.#peers.clear(); // offline: their cursors would only go stale
+        this.#presenceChanged();
+      }
       if (this.#wantOnline)
         this.#retry = setTimeout(
           () => this.#open(),
@@ -277,6 +338,14 @@ export class SyncClient {
         .missing(message.vector)
         .filter((entry) => !this.#notSaved.has(entry));
       if (missing.length > 0) this.#send({ type: "ops", entries: missing });
+      this.#sendPresence();
+      return;
+    }
+    if (message.type === "presence") {
+      if (message.replica === this.replica) return;
+      if (message.selection === null) this.#peers.delete(message.replica);
+      else this.#peers.set(message.replica, message.selection);
+      this.#presenceChanged();
       return;
     }
     if (message.type !== "ops") {

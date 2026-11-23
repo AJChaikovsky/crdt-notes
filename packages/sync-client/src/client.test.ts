@@ -178,6 +178,37 @@ describe("SyncClient sync", () => {
   });
 });
 
+describe("SyncClient presence", () => {
+  it("shows another device's cursor, kept in place while others type before it", async () => {
+    server = await startServer({ port: 0, dataDir });
+    const alice = await open(new IDBFactory());
+    const bob = await open(new IDBFactory());
+    alice.connect();
+    bob.connect();
+    type(alice, 0, "hello");
+    await eventually(() => expect(bob.text()).toBe("hello"));
+    bob.setSelection(1, 4); // "ell" selected, cursor before the "o"
+    await eventually(() =>
+      expect(alice.peers()).toEqual([{ replica: bob.replica, anchor: 1, head: 4 }]),
+    );
+    type(alice, 0, ">> "); // three characters before Bob's selection
+    expect(alice.peers()).toEqual([{ replica: bob.replica, anchor: 4, head: 7 }]);
+  });
+
+  it("removes a cursor when its device leaves", async () => {
+    server = await startServer({ port: 0, dataDir });
+    const alice = await open(new IDBFactory());
+    const bob = await open(new IDBFactory());
+    alice.connect();
+    bob.connect();
+    await eventually(() => expect(alice.live && bob.live).toBe(true));
+    bob.setSelection(0, 0);
+    await eventually(() => expect(alice.peers()).toHaveLength(1));
+    bob.disconnect();
+    await eventually(() => expect(alice.peers()).toHaveLength(0));
+  });
+});
+
 describe("SyncClient safety", () => {
   it("never sends an edit before it is saved, and retries a failed save", async () => {
     server = await startServer({ port: 0, dataDir });

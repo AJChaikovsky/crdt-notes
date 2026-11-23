@@ -29,9 +29,13 @@ export interface ServerOptions {
   readonly dataDir: string;
 }
 
+type Presence = Extract<Message, { type: "presence" }>;
+
 interface Doc {
   readonly log: OpLog;
   readonly clients: Set<WebSocket>;
+  /** Each client's latest presence, in memory only (ADR-0012). */
+  readonly presence: Map<WebSocket, Presence>;
 }
 
 /**
@@ -45,6 +49,8 @@ interface Doc {
  *    client lacks.
  * 3. The client sends `ops` with everything the server lacks, then its edits as it makes
  *    them. The server saves each new entry and relays it to the document's other clients.
+ * 4. Either way, at any time: `presence`, where someone's cursor is. The server relays it
+ *    and remembers only the latest per client, in memory, to show newcomers (ADR-0012).
  *
  * Anything else (bad JSON, a second `hello`, `ops` before `hello`) closes the connection
  * with code 1008 (policy violation). The client reconnects and starts over.
@@ -72,7 +78,7 @@ export async function startServer(options: ServerOptions): Promise<SyncServer> {
   const open = (name: string): Doc => {
     let doc = docs.get(name);
     if (doc === undefined) {
-      doc = { log: store.load(name), clients: new Set() };
+      doc = { log: store.load(name), clients: new Set(), presence: new Map() };
       docs.set(name, doc);
     }
     return doc;
@@ -102,11 +108,19 @@ export async function startServer(options: ServerOptions): Promise<SyncServer> {
         send({ type: "welcome", vector: doc.log.vector() });
         const missing = doc.log.missing(message.vector);
         if (missing.length > 0) send({ type: "ops", entries: missing });
+        for (const presence of doc.presence.values()) send(presence);
         return;
       }
 
-      if (message.type !== "ops") return reject("unexpected message");
       const { name, doc } = session;
+      if (message.type === "presence") {
+        if (message.selection === null) doc.presence.delete(socket);
+        else doc.presence.set(socket, message);
+        const relay = encodeMessage(message);
+        for (const other of doc.clients) if (other !== socket) other.send(relay);
+        return;
+      }
+      if (message.type !== "ops") return reject("unexpected message");
       const fresh = message.entries.filter((entry) => doc.log.add(entry));
       if (fresh.length === 0) return;
       store.append(name, fresh);
@@ -115,7 +129,19 @@ export async function startServer(options: ServerOptions): Promise<SyncServer> {
     });
 
     socket.on("close", () => {
-      session?.doc.clients.delete(socket);
+      if (session === null) return;
+      const { doc } = session;
+      doc.clients.delete(socket);
+      const last = doc.presence.get(socket);
+      if (last === undefined) return;
+      // Tell the others this cursor is gone.
+      doc.presence.delete(socket);
+      const gone = encodeMessage({
+        type: "presence",
+        replica: last.replica,
+        selection: null,
+      });
+      for (const other of doc.clients) other.send(gone);
     });
   });
 

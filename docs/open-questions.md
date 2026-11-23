@@ -13,6 +13,9 @@ Terms are defined in `glossary.md`.
    in positions of the old text. Why does `applyToCrdt` apply the insert at 7 first?
 2. A remote edit is applied to the editor but kept out of its undo history. What would
    Ctrl+Z do to the other person's text if it weren't?
+3. Cursors are sent as "after character X" rather than as an index. Give a concrete
+   sequence of two people typing where the index version shows a cursor in the wrong
+   place.
 
 ## Phase 5: catching up with version vectors
 

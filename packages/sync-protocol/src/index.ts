@@ -9,4 +9,5 @@ export {
   encodeEntry,
   encodeMessage,
   type Message,
+  type Selection,
 } from "./messages.js";

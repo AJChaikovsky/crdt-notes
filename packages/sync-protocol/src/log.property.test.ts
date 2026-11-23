@@ -134,10 +134,26 @@ const vector: fc.Arbitrary<VersionVector> = fc
   )
   .map((pairs) => new Map(pairs));
 
+const anchorId = fc.record({
+  counter: fc.integer({ min: 1, max: Number.MAX_SAFE_INTEGER }),
+  replica: fc.string({ unit: "binary" }),
+});
+
 const message: fc.Arbitrary<Message> = fc.oneof(
   fc.record({ type: fc.constant("hello" as const), doc: fc.string(), vector }),
   fc.record({ type: fc.constant("welcome" as const), vector }),
   universe.map((entries) => ({ type: "ops" as const, entries })),
+  fc.record({
+    type: fc.constant("presence" as const),
+    replica: fc.string(),
+    selection: fc.option(
+      fc.record({
+        anchor: fc.option(anchorId, { nil: null }),
+        head: fc.option(anchorId, { nil: null }),
+      }),
+      { nil: null },
+    ),
+  }),
 );
 
 describe("sync messages", () => {
@@ -154,7 +170,16 @@ describe("sync messages", () => {
     const broken = fc
       .tuple(
         message,
-        fc.constantFrom("v", "type", "doc", "vector", "entries", "extra"),
+        fc.constantFrom(
+          "v",
+          "type",
+          "doc",
+          "vector",
+          "entries",
+          "replica",
+          "selection",
+          "extra",
+        ),
         fc.jsonValue(),
       )
       .map(([m, field, value]) => {
