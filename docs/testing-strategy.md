@@ -180,4 +180,8 @@ runs each).
 | 2026-11-23 | Editor binding | A second delete of the same character is reported again | 1 test fails |
 | 2026-11-23 | Editor binding | Remote edits are flagged as local | 1 test fails |
 | 2026-11-23 | Editor binding | A transaction's changes are applied first to last | 2 tests fail |
+| 2026-11-23 | Presence | An anchor on a deleted character still counts it | 1 test fails |
+| 2026-11-23 | Presence | The server doesn't show newcomers the current cursors | 1 test fails |
+| 2026-11-23 | Presence | The server doesn't announce a client leaving | 2 tests fail |
+| 2026-11-23 | Presence | The client ignores a peer leaving | 1 test fails |
 

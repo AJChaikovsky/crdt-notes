@@ -192,3 +192,14 @@ number (below) and the vector stops at the first missing op (ADR-0008).
 then 2, 3, and so on, with no gaps. It is separate from the Lamport counter, which jumps
 whenever the author sees someone else's op, so "highest counter seen" can't reveal a
 missing op and "highest unbroken `seq`" can.
+
+## The app (Phase 6)
+
+**Presence.** Showing where other people are in a document right now: their cursors and
+selections. It is ephemeral, meaning it only matters while they are connected, so it is
+relayed but never saved or merged, and it is not part of the CRDT (ADR-0012).
+
+**Anchor (relative position).** A position named by the character next to it ("just
+after this character") instead of by a number. A number shifts whenever someone types
+before it; an anchor stays put through concurrent edits, which is why cursors are sent
+as anchors.
