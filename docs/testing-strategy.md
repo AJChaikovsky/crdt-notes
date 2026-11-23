@@ -153,3 +153,8 @@ runs each).
 | 2026-09-29 | Fugue unit tests | Early ops are dropped instead of held | 2 of 61 tests fail (the same two) |
 | 2026-09-29 | Fugue unit tests | A delete looks up its target but doesn't tombstone it | 4 of 61 tests fail (every delete test) |
 | 2026-09-29 | P5, P7 (Fugue) | Local insert always makes a right child of the origin, never a left child | P7 after 1, 2, 3 runs and P5 after 1, 1, 1 runs. P1 to P4 and P6 still pass: replicas converge, just in the wrong order |
+| 2026-11-23 | FastFugue vs reference | A B-tree leaf split doesn't move the leaf pointers of the characters it moves | 3 tests fail (`PositionTree` model and both long reference properties) |
+| 2026-11-23 | FastFugue vs reference | A leaf split doesn't subtract the moved visible count | 3 tests fail |
+| 2026-11-23 | FastFugue vs reference | A last right child is placed straight after its parent instead of after the parent's subtree | 5 tests fail |
+| 2026-11-23 | FastFugue vs reference | A node with a bigger sibling is placed before that sibling instead of before its leftmost descendant | 7 tests fail |
+

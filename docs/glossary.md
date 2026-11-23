@@ -150,3 +150,11 @@ keystroke has to turn a cursor index into a position in the CRDT. Remote replay 
 another replica applying the resulting ops, which already name their parent by ID. The
 two can differ by orders of magnitude, so the benchmark times both.
 
+**B-tree (position tree).** A balanced tree whose nodes each hold many entries (here up
+to 64), so it stays only a few levels deep even for a huge document. Each node also
+stores how many visible characters are under it, which lets you find "the character at
+index i" by walking down and subtracting counts, in log n steps instead of reading the
+whole document. Without it, every keystroke costs time proportional to the document's
+length, which made the reference Fugue take an estimated 1.5 hours on the trace
+(ADR-0006).
+
