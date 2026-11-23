@@ -28,6 +28,7 @@ export function App() {
     void SyncClient.open({ doc, url: SYNC_URL }).then((c) => {
       if (cancelled) return void c.close();
       opened = c;
+      if (import.meta.env.DEV) Object.assign(window, { client: c }); // for poking at it in devtools
       c.connect();
       setClient(c);
     });

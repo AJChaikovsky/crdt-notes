@@ -6,6 +6,7 @@ import { EditorView, keymap } from "@codemirror/view";
 import type { SyncClient } from "@crdt-notes/sync-client";
 import { useEffect, useRef } from "react";
 import { applyToCrdt, fromRemote, toCodeMirror } from "./binding.js";
+import { presence } from "./presence.js";
 
 /**
  * A CodeMirror markdown editor bound to one document (ADR-0011). Local edits go into the
@@ -27,10 +28,19 @@ export function Editor({ client }: { client: SyncClient }) {
           markdown(),
           syntaxHighlighting(defaultHighlightStyle),
           EditorView.lineWrapping,
+          presence(client),
           EditorView.updateListener.of((update) => {
+            let local = false;
             for (const tr of update.transactions)
-              if (tr.docChanged && tr.annotation(fromRemote) !== true)
+              if (tr.docChanged && tr.annotation(fromRemote) !== true) {
                 applyToCrdt(tr.changes, client);
+                local = true;
+              }
+            // After the CRDT has the edit, so the anchors name the right characters.
+            if (local || update.selectionSet) {
+              const { anchor, head } = update.state.selection.main;
+              client.setSelection(anchor, head);
+            }
           }),
         ],
       }),
