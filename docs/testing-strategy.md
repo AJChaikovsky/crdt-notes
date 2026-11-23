@@ -157,4 +157,10 @@ runs each).
 | 2026-11-23 | FastFugue vs reference | A leaf split doesn't subtract the moved visible count | 3 tests fail |
 | 2026-11-23 | FastFugue vs reference | A last right child is placed straight after its parent instead of after the parent's subtree | 5 tests fail |
 | 2026-11-23 | FastFugue vs reference | A node with a bigger sibling is placed before that sibling instead of before its leftmost descendant | 7 tests fail |
+| 2026-11-23 | P8, P9 | `FastFugue.load` ignores the saved clock | 5 tests fail (P9 next-edit checks and the clock unit test) |
+| 2026-11-23 | P8, P9 | `Fugue.load` drops the deleted flag | 6 tests fail |
+| 2026-11-23 | P8, P9 | `FastFugue.snapshot` leaves out held-back ops | 3 tests fail |
+| 2026-11-23 | P8, P9 | The decoder accepts a left child of the document start | 1 test fails (its unit test only; no generator makes that op) |
+| 2026-11-23 | P8, P9 | `Fugue.snapshot` lists right subtrees before left ones | 2 tests fail (Fugue and FastFugue snapshots stop being byte-identical) |
+| 2026-11-23 | P8, P9 | `FastFugue.load` attaches every node as a right child | 6 tests fail |
 

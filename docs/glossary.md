@@ -158,3 +158,23 @@ whole document. Without it, every keystroke costs time proportional to the docum
 length, which made the reference Fugue take an estimated 1.5 hours on the trace
 (ADR-0006).
 
+## Storage format (Phase 4, P8 and P9)
+
+**Encoding (serialization).** Turning an in-memory value, like an op, into bytes or text
+that can be stored or sent, and decoding is turning it back. Without it nothing leaves
+the process. The catch is that the decoder reads data it didn't write: a corrupted disk,
+a truncated message, an older or newer app version, or a hostile peer. So a decoder must
+check everything and reject what it can't read, rather than crash or quietly build a
+wrong value. Here, ops and snapshots are JSON with a version number (ADR-0007).
+
+**Fuzzing.** Feeding a program large amounts of random or slightly broken input to find
+inputs that crash it. P8 fuzzes the decoder: whatever text it gets, it must either
+return a valid op or throw `DecodeError`, never some other exception. Without fuzzing, a
+decoder is usually only tested on the well-formed input its author thought of.
+
+**Snapshot.** A replica's whole state saved as one value, so it can be loaded in one step
+instead of replaying every op since the document was created. It is what lets storage
+throw away an old op log (compaction). It must restore everything that affects future
+behaviour, not just the text: here the Fugue tree's shape, the tombstones, the Lamport
+clock and any held-back ops (ADR-0007). A snapshot that only kept the text would load
+fine and then merge the next concurrent edit differently from every other replica.
