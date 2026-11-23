@@ -125,6 +125,12 @@ README.
 
 Things that will occur to you mid-project. Write them here and move on.
 
+- **Heartbeat on the sync connection** (parked 2026-11-23). The app disconnects when the
+  browser reports `offline`, but a network that stops routing without the browser noticing
+  can leave a socket half-open, still showing "Synced". A ping every few seconds would
+  catch it (ADR-0014).
+- **Removing a note from a device** (parked 2026-11-23). It would also have to delete the
+  note's database, losing edits not yet sent (ADR-0013).
 - **Runs in FastFugue** (parked 2026-11-23, AJ's pick). Store a stretch typed in one go
   as one B-tree entry instead of one entry per character. It would cut memory and add
   speed, but the 1 s target is met without it (about 330 ms on the full trace,
