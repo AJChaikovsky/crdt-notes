@@ -163,4 +163,7 @@ runs each).
 | 2026-11-23 | P8, P9 | The decoder accepts a left child of the document start | 1 test fails (its unit test only; no generator makes that op) |
 | 2026-11-23 | P8, P9 | `Fugue.snapshot` lists right subtrees before left ones | 2 tests fail (Fugue and FastFugue snapshots stop being byte-identical) |
 | 2026-11-23 | P8, P9 | `FastFugue.load` attaches every node as a right child | 6 tests fail |
+| 2026-11-23 | OpLog (sync) | The vector is each author's highest `seq` instead of the end of the unbroken run | 2 tests fail (vector model, and the exchange loses ops behind a gap) |
+| 2026-11-23 | OpLog (sync) | `missing` leaves out entries ahead of a gap | 1 test fails (exchange) |
+| 2026-11-23 | OpLog (sync) | `missing` skips one author entirely | 1 test fails (exchange) |
 

@@ -48,7 +48,7 @@ export interface SnapshotData {
  * ```
  */
 export function encodeOp(op: FugueOp): string {
-  return JSON.stringify({ v: FORMAT_VERSION, ...opObject(op) });
+  return JSON.stringify({ v: FORMAT_VERSION, ...opToValue(op) });
 }
 
 /**
@@ -68,6 +68,14 @@ export function decodeOp(text: string): FugueOp {
   return readOp(value, "op", ["v"]);
 }
 
+/**
+ * Reads an op written by `opToValue` (already parsed from JSON), with the same checks
+ * as `decodeOp`. Throws `DecodeError`.
+ */
+export function opFromValue(value: unknown): FugueOp {
+  return readOp(record(value, "op"), "op", []);
+}
+
 /** Turns a replica's state into text. Used by `Fugue.snapshot` and `FastFugue.snapshot`. */
 export function encodeSnapshot(data: SnapshotData): string {
   return JSON.stringify({
@@ -80,7 +88,7 @@ export function encodeSnapshot(data: SnapshotData): string {
       side: node.side,
       deleted: node.deleted,
     })),
-    pending: data.pending.map(opObject),
+    pending: data.pending.map(opToValue),
   });
 }
 
@@ -127,7 +135,12 @@ export function decodeSnapshot(text: string): SnapshotData {
   return { clock, nodes, pending };
 }
 
-function opObject(op: FugueOp): Record<string, unknown> {
+/**
+ * An op as a plain JSON-ready object, without the version field: for formats that nest
+ * ops inside a bigger versioned value, like a snapshot or a sync message. `opFromValue`
+ * reads it back.
+ */
+export function opToValue(op: FugueOp): Record<string, unknown> {
   if (op.kind === "delete")
     return { kind: "delete", id: idObject(op.id), target: idObject(op.target) };
   return {
