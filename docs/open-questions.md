@@ -7,6 +7,16 @@ instead of being asked in chat. When you answer one, move it with your answer in
 
 Terms are defined in `glossary.md`.
 
+## P8 and P9: encoding and snapshots
+
+1. A snapshot stores the Lamport clock instead of working it out from the highest
+   counter among the nodes. Describe the sequence of events that goes wrong if it is
+   worked out from the nodes instead.
+2. Why does a snapshot store each node's parent and side, when the text and the order of
+   the characters would already reproduce the document?
+3. The decoder rejects an op with an extra field it doesn't know. What would go wrong if
+   it ignored the field instead, once a version 2 of the format exists?
+
 ## Phase 4: making it fast
 
 1. In the reference `Fugue` class, why does one local keystroke cost time proportional

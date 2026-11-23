@@ -1,4 +1,5 @@
 import { Clock } from "./clock.js";
+import { decodeSnapshot, encodeSnapshot, type SnapshotNode } from "./encoding.js";
 import { compareIds, type Id, type ReplicaId } from "./id.js";
 import type { DeleteOp, ItemView } from "./rga.js";
 
@@ -21,6 +22,9 @@ export type FugueOp = FugueInsertOp | DeleteOp;
 interface Node {
   readonly id: Id;
   readonly char: string;
+  /** Where the insert op attached it, kept so a snapshot can attach it the same way. */
+  readonly parent: Id | null;
+  readonly side: "left" | "right";
   deleted: boolean;
   /** Left and right children, each kept sorted by `compareIds`, smallest first. */
   readonly left: Id[];
@@ -180,6 +184,53 @@ export class Fugue {
     return this.#walk().map(({ id, char, deleted }) => ({ id, char, deleted }));
   }
 
+  /**
+   * The replica's whole state as text: every node with its parent, side and deleted
+   * flag, the clock, and any held-back ops (ADR-0007). `Fugue.load` and `FastFugue.load`
+   * rebuild an identical replica from it, so storage can keep this instead of the full
+   * op log. Two replicas in the same state give byte-identical snapshots.
+   *
+   * @example Bob saves and reloads while Alice's concurrent insert is in flight. The
+   * reloaded replica merges it exactly as the original would have:
+   * ```ts
+   * bob.insertAt(0, "b");
+   * const x = alice.insertAt(0, "x");             // concurrent with Bob's "b"
+   * const reloaded = Fugue.load("B", bob.snapshot());
+   * reloaded.apply(x);
+   * bob.apply(x);
+   * reloaded.items(); // equal to bob.items(), tombstones and all
+   * ```
+   */
+  snapshot(): string {
+    const nodes: SnapshotNode[] = [];
+    // Pre-order: a node, then its left subtrees, then its right subtrees, so every
+    // parent is listed before its children (ADR-0007 item 6).
+    const stack = [...this.#root].reverse();
+    for (let id = stack.pop(); id !== undefined; id = stack.pop()) {
+      const { char, parent, side, deleted, left, right } = this.#node(id);
+      nodes.push({ id, char, parent, side, deleted });
+      stack.push(...[...right].reverse(), ...[...left].reverse());
+    }
+    return encodeSnapshot({ clock: this.#clock.counter, nodes, pending: this.#pending });
+  }
+
+  /**
+   * Rebuilds a replica from `snapshot()` text, as replica `replica`. Throws
+   * `DecodeError` if the text isn't a valid snapshot. The result equals replaying the
+   * original's whole op log from empty (P9). The text may come from `FastFugue` too.
+   */
+  static load(replica: ReplicaId, snapshot: string): Fugue {
+    const data = decodeSnapshot(snapshot);
+    const doc = new Fugue(replica);
+    doc.#clock.observe({ counter: data.clock, replica });
+    for (const { id, char, parent, side, deleted } of data.nodes) {
+      doc.#integrate({ kind: "insert", id, char, parent, side });
+      if (deleted) doc.#node(id).deleted = true;
+    }
+    for (const op of data.pending) doc.apply(op);
+    return doc;
+  }
+
   #ready(op: FugueOp): boolean {
     if (op.kind === "delete") return this.#nodes.has(key(op.target));
     return op.parent === null || this.#nodes.has(key(op.parent));
@@ -205,6 +256,8 @@ export class Fugue {
     this.#nodes.set(key(op.id), {
       id: op.id,
       char: op.char,
+      parent: op.parent,
+      side: op.side,
       deleted: false,
       left: [],
       right: [],

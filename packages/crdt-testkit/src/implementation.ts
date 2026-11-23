@@ -47,3 +47,12 @@ export const fastFugue: Implementation<FugueOp> = {
   name: "FastFugue",
   create: (id) => new FastFugue(id),
 };
+
+/**
+ * A replica from `fugue` or `fastFugue`, with the methods the testkit's interface leaves
+ * out (`snapshot`, `insertAt`, `deleteAt`). Throws for any other implementation.
+ */
+export function asFugueDoc(doc: ListCrdt<FugueOp>): Fugue | FastFugue {
+  if (doc instanceof Fugue || doc instanceof FastFugue) return doc;
+  throw new Error("not a Fugue or FastFugue replica");
+}
