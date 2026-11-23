@@ -170,4 +170,9 @@ runs each).
 | 2026-11-23 | Sync server | A connecting client isn't sent what it lacks | 2 tests fail |
 | 2026-11-23 | Sync server | A cut-off last line is dropped but not truncated | 1 test fails |
 | 2026-11-23 | Sync server | New entries are sent back to their sender instead of the others | 3 tests fail |
+| 2026-11-23 | Sync client | The handshake sends entries that aren't saved yet | 1 test fails |
+| 2026-11-23 | Sync client | Opening ignores entries saved after the snapshot | 2 tests fail |
+| 2026-11-23 | Sync client | A failed save is dropped instead of retried | The retry test hangs until its timeout |
+| 2026-11-23 | Sync client | A local edit is sent before it is saved | 1 test fails |
+| 2026-11-23 | Sync client | No reconnect after the connection drops | 1 test fails (server restart) |
 

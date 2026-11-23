@@ -71,7 +71,8 @@ Each step is one PR with its own tests:
    entries and periodic snapshots to IndexedDB, and doing the handshake on every
    reconnect. Tested in Node with an in-memory IndexedDB.
 4. **Exit test:** three clients, the server killed and restarted mid-session, one client
-   offline across the restart, and all three end with identical state.
+   offline across the restart, and all three end with identical state. (Landed together with step 3,
+   in ADR-0010.)
 
 ## How it is checked
 
