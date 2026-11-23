@@ -184,3 +184,36 @@ describe("Fugue delete and held ops", () => {
     expect(bob.items()).toEqual(alice.items());
   });
 });
+
+describe("Fugue index-based local edits", () => {
+  it("inserts and deletes by visible index, skipping tombstones", () => {
+    const alice = new Fugue("A");
+    for (const [i, char] of [..."ace"].entries()) alice.insertAt(i, char);
+    alice.insertAt(1, "b");
+    alice.insertAt(3, "d");
+    expect(alice.text()).toBe("abcde");
+    alice.deleteAt(0);
+    alice.insertAt(0, "A"); // index 0 is still the start, past the tombstone
+    expect(alice.text()).toBe("Abcde");
+  });
+
+  it("converges when two replicas type at the same index", () => {
+    const alice = new Fugue("A");
+    const ops = [alice.insertAt(0, "a"), alice.insertAt(1, "c")];
+    const bob = new Fugue("B");
+    for (const op of ops) bob.apply(op);
+    const b = alice.insertAt(1, "b");
+    const x = bob.insertAt(1, "x");
+    alice.apply(x);
+    bob.apply(b);
+    expect(alice.text()).toBe(bob.text());
+    expect(["abxc", "axbc"]).toContain(alice.text());
+  });
+
+  it("rejects positions outside the document", () => {
+    const alice = new Fugue("A");
+    alice.insertAt(0, "a");
+    expect(() => alice.insertAt(2, "b")).toThrow(RangeError);
+    expect(() => alice.deleteAt(1)).toThrow(RangeError);
+  });
+});
