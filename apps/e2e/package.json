@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "test": "playwright test",
+    "demo": "playwright test -c demo.config.ts",
     "typecheck": "tsc -p tsconfig.json"
   },
   "devDependencies": {
