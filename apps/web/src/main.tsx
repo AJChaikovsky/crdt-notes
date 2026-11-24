@@ -10,3 +10,7 @@ createRoot(root).render(
     <App />
   </StrictMode>,
 );
+
+// Only in a built app: in development Vite serves changing files, which a cache would hide.
+if (import.meta.env.PROD && "serviceWorker" in navigator)
+  addEventListener("load", () => void navigator.serviceWorker.register("./sw.js"));

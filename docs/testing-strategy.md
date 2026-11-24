@@ -185,3 +185,10 @@ runs each).
 | 2026-11-23 | Presence | The server doesn't announce a client leaving | 2 tests fail |
 | 2026-11-23 | Presence | The client ignores a peer leaving | 1 test fails |
 
+| 2026-11-23 | Note list | Reopening a note forgets its title | 1 test fails |
+| 2026-11-23 | Note list | Oldest note listed first | 2 tests fail |
+| 2026-11-23 | Note list | Retitling moves a note to the top | 2 tests fail |
+| 2026-11-23 | Offline shell | No reconnect on the browser's `online` event | Exit test fails |
+| 2026-11-23 | Offline shell | Only `index.html` cached | Offline test fails |
+| 2026-11-23 | Offline shell | A remote delete applied one place early | Exit test fails |
+| 2026-11-23 | Offline shell | Page addresses served by their own address (equivalent today) | Survives |

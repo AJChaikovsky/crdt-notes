@@ -21,3 +21,17 @@ jobs:
       - run: pnpm typecheck
       # 10,000 generated cases per property, with the seed printed for every run.
       - run: pnpm test:ci
+
+  # The roadmap's Phase 6 exit test: the built app in real Chromium, against a real server.
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @crdt-notes/e2e exec playwright install --with-deps chromium
+      - run: pnpm e2e

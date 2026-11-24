@@ -16,6 +16,14 @@ Terms are defined in `glossary.md`.
 3. Cursors are sent as "after character X" rather than as an index. Give a concrete
    sequence of two people typing where the index version shows a cursor in the wrong
    place.
+4. The note list is a cache kept separately from the notes. Name one way it can end up
+   disagreeing with them, and say why that never loses any text.
+5. Note IDs are 80 random bits instead of names like "shopping". With no accounts, what
+   would someone be able to do if IDs were short names?
+6. The service worker downloads every file of a new version before taking over. What
+   would someone see if it took over after downloading only half of them, with no network?
+7. Why can't the exit test compare the two editors' HTML as it is, and why is removing
+   the cursor decorations before comparing still a fair test of convergence?
 
 ## Phase 5: catching up with version vectors
 

@@ -203,3 +203,20 @@ relayed but never saved or merged, and it is not part of the CRDT (ADR-0012).
 after this character") instead of by a number. A number shifts whenever someone types
 before it; an anchor stays put through concurrent edits, which is why cursors are sent
 as anchors.
+
+**Share link.** A note's address, the app's URL with `#` and the note's random ID. With no
+accounts it is the only key to the note: anyone who has it can open and edit the note, and
+anyone who doesn't can't find it, because nothing lists notes across devices (ADR-0013).
+
+**Service worker.** A script the browser keeps running beside a site's pages, which can
+answer the pages' requests itself. Here it keeps a copy of every file of the app, so the
+app opens with no network at all; without one, an offline reload shows the browser's
+"no internet" page even though every note is saved on the device (ADR-0014).
+
+**PWA (Progressive Web App) manifest.** A small JSON file naming a web app, its icons and
+colours. With it, browsers offer to install the site so it opens in its own window like
+an ordinary app.
+
+**Offline-first (cache first).** Answering from the saved copy before trying the network,
+so the app opens instantly either way. The cost is that a new version shows one reload
+after it was downloaded.

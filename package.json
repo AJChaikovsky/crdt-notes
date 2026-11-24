@@ -15,7 +15,8 @@
     "format:check": "prettier --check .",
     "bench": "vitest run --config vitest.bench.config.ts --silent=false",
     "dev:server": "pnpm --filter @crdt-notes/server start",
-    "dev:web": "pnpm --filter @crdt-notes/web dev"
+    "dev:web": "pnpm --filter @crdt-notes/web dev",
+    "e2e": "pnpm --filter @crdt-notes/e2e test"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
