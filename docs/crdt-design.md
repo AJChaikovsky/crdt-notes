@@ -2,27 +2,73 @@
 
 Acronyms are expanded on first use. Full definitions live in `glossary.md`.
 
-The writeup. Sections marked `TODO` get filled in as you build. The interleaving section
-is pre-written because you need it before you can choose an algorithm — verify every
-claim in it against the papers before you publish.
+The writeup of how this project's text CRDT works, why, and how it compares. Every claim
+about another algorithm or library was checked against its paper or by running it.
 
 ---
 
 ## 1. The problem
 
-TODO — what "conflict-free" means for text, why last-writer-wins on the whole document
-is useless, why OT (Operational Transformation) — the pre-CRDT approach, where incoming ops are
-rewritten against the ops their author hadn't seen — needs a central server to be
-tractable.
+Several people edit the same note, each on their own device, sometimes offline for days.
+Every device must accept edits instantly, without asking a server, and when devices
+exchange what they have, all of them must end up showing the same text. That is what
+"conflict-free" means for text: no edit is ever rejected or shown as a conflict for a
+person to resolve, and any two devices that have received the same edits show the same
+document, whatever order the edits arrived in (convergence, P1 in
+`testing-strategy.md`).
+
+**Last-writer-wins on the whole document doesn't do it.** If each device sends its whole
+text and the newest copy wins, two people who edit different paragraphs offline lose one
+person's work entirely. It converges, but by throwing edits away.
+
+**OT (Operational Transformation)**, the approach behind Google Docs, sends edits as
+"insert `x` at index 5" and rewrites each incoming edit against the edits its author
+hadn't seen: if someone else inserted three characters before index 5 in the meantime, it
+becomes "insert at 8". Getting the rewriting rules right for every pair of concurrent
+edits, in every order they can arrive, is notoriously hard; several published OT
+algorithms were later shown not to converge. A central server that puts every edit in one
+order makes it tractable, because each client then only transforms against that one
+sequence. That server is exactly what a local-first app can't depend on.
+
+**A CRDT avoids rewriting** by never addressing characters by index on the wire. Each
+character gets a permanent unique ID, and an edit says "insert this new character next to
+character X" or "delete character Y". Those mean the same thing on every device, whatever
+else has happened, so edits can be applied in any order without transformation. The cost
+moves elsewhere: devices must keep IDs, and deleted characters, around (sections 2 and 5),
+and concurrent inserts at the same place need a rule that keeps each person's typing
+together (section 3).
 
 ---
 
 ## 2. Model
 
-TODO — ops (operations), IDs, Lamport clocks (per-replica counters giving causal order
-without synchronised wall-clocks), replica IDs, what happens-before means here, why you
-need tombstones (deleted characters kept as markers, because a concurrent op may still
-reference them as an insertion point).
+- **Replica.** One copy of a document on one device, with a **replica ID**: a random
+  string chosen the first time that device saves the document (ADR-0002, ADR-0010).
+- **Op (operation).** The unit that is sent and saved. An insert op carries the new
+  character, its ID, and where it goes (in Fugue, a `parent` character and a `side`). A
+  delete op names the ID of the character it deletes and has an ID of its own
+  (ADR-0002, ADR-0004).
+- **ID.** A pair `(counter, replica)`. IDs are compared by counter, then by replica ID
+  with plain `<`. No two ops ever share one, because each replica only makes IDs with its
+  own replica ID and never reuses a counter.
+- **Lamport clock.** Each replica's counter. It adds 1 for every local op, and on
+  receiving an op it jumps past that op's counter. So if op B was made by someone who had
+  already seen op A, B's counter is bigger than A's: counters respect causal order without
+  anyone's wall clock being right.
+- **Happens-before.** Op A happens before op B if B's author had A when making B, directly
+  or through ops received in between. Otherwise A and B are **concurrent**: neither author
+  knew about the other's op. Only concurrent ops need a tie-break rule; for everything
+  else, the order people saw is the order kept.
+- **Causal readiness.** An op can only be applied once everything it refers to is
+  present: an insert's `parent`, a delete's target. One that arrives early waits in a
+  pending buffer until it is ready (P4, ADR-0003).
+- **Tombstones.** A deleted character stays in the structure, marked deleted, hidden from
+  the text. A concurrent insert may name it as its `parent`; if it were gone, that insert
+  would have nowhere to go, and replicas that received the delete and the insert in
+  different orders would put it in different places. Section 5 covers what this costs.
+
+The guarantee all of this buys is strong eventual consistency: replicas that have received
+the same set of ops are in the same state (P3), with no further messages or coordination.
 
 ---
 
@@ -175,8 +221,7 @@ items()  = walk(ROOT), tombstones included
 
 The paper proves only **FugueMax** maximally non-interleaving (Theorem 9). Plain Fugue is
 proved forward non-interleaving, and can interleave backward in rare cases that need
-right siblings with different right origins (the paper's Figure 7). Section 3 above and
-the ADR-0001 table currently say Fugue itself is maximal; that needs correcting. AJ chose
+right siblings with different right origins (the paper's Figure 7). Section 3 and ADR-0001 were corrected to say so on 2026-09-28. AJ chose
 plain Fugue first: build the simpler rule, let P7 look for the gap, then move to FugueMax
 if it finds one.
 
@@ -197,18 +242,81 @@ but each run is one subtree, so the walk gives `abcxyz` or `xyzabc`, never `axby
 
 ## 5. Tombstones and garbage collection
 
-TODO. The shape of the problem: a deleted character can't be removed outright, because a
-concurrent op might reference it as an origin. Options to evaluate — never collect;
-collect once an op is *causally stable* (every replica has seen it, which requires
-knowing the replica set); run-length-encode tombstone spans so the cost is per-span not
-per-character. Note what Yjs does and why. Record the decision in ADR-0003.
+A deleted character can't simply be removed, because a concurrent op might name it as its
+`parent` (section 2). So deletes leave tombstones, and the question is whether they can
+ever be collected.
+
+**Decision: never collect** (AJ, 2026-11-24, ADR-0015).
+
+What it costs, measured on the automerge-paper trace: the final document has 104,852
+visible characters and 182,315 nodes, so 77,463 (42%) are tombstones. They are part of
+the 22.4 MB snapshot and of the memory in section 7. For notes, which are mostly typed
+and rarely rewritten wholesale, that is a constant factor, not unbounded growth. The
+measured cost of storing one node per character, deleted or not, is much larger than the
+cost of the tombstones themselves.
+
+The options that were weighed:
+
+- **Never collect.** Always correct, with no extra machinery: an op from a device that was
+  offline for a year still finds its parent.
+- **Collect once a tombstone is causally stable**, meaning every replica has seen the
+  delete, so no op that names it as a parent can still be in flight. Knowing that needs a
+  known replica set and every replica reporting what it has. One device that never comes
+  back blocks collection forever, and a device that does come back after its peers
+  collected would hold ops pointing at nodes that no longer exist. In a Fugue tree a
+  tombstone can also have children, so removing it means restructuring the tree on every
+  replica the same way.
+- **Compact spans** (run-length encoding): store a deleted stretch as one entry. This
+  attacks the per-node cost rather than the tombstones, and it is the same change as runs
+  in FastFugue, parked in `roadmap.md#parked`.
+
+**What Yjs does,** checked in its source (`src/structs/Item.js`, `Item.gc`, version
+13.6.33): a deleted item keeps its ID and origins, but its content is replaced by a
+length-only `ContentDeleted`, and adjacent items merge, so a deleted stretch costs one
+small struct. Only when a whole type is deleted are its items replaced by `GC` structs,
+which keep just an ID range. So Yjs never forgets a deleted character's identity either;
+it makes tombstones cheap by storing them as runs. That is the compact-spans option, and
+the reason its document is so much smaller (section 7).
 
 ---
 
 ## 6. Sync protocol
 
-TODO — vector clock handshake, what the server stores, what happens when a client
-reconnects after a week offline, why presence is deliberately outside the CRDT.
+A Node server relays ops between clients over WebSocket and keeps every document's ops on
+disk. Clients keep their own ops in IndexedDB. Neither side ever needs the other to be
+up: the server is a relay and a backup, not an authority, and the CRDT would converge with
+any other way of passing ops around.
+
+**Catching up (ADR-0008).** Each op gets a per-author sequence number, `seq`: 1, 2, 3...
+for each author's ops, with no gaps. A side summarises what it holds as a **version
+vector**: for each author, the highest `seq` up to which it has every op, with no holes.
+On connecting, the client sends `hello` with its vector; the server answers `welcome` with
+its own vector and every op the client lacks; the client then sends every op the server
+lacks. After that, new ops flow both ways as they are made. A vector has one entry per
+author ever seen, so the handshake is small whatever the document's size.
+
+**What the server stores (ADR-0009).** One append-only file per document, one op per
+line, written to disk before the op is relayed, so the server never passes on an op it
+could forget in a crash. A line cut off by a crash is dropped on load; the client that
+sent it still has it and resends it on the next handshake.
+
+**What the client stores (ADR-0010).** Every op in IndexedDB, plus a snapshot every 1000
+ops so loading doesn't replay the whole history. An op is saved before it is sent, so a
+tab killed in between can't leave the server holding an op the device itself lost.
+
+**After a week offline.** Nothing special happens. The device kept editing against its
+own copy, saving every op. On reconnecting, the handshake sends the server everything the
+device made that week and sends the device everything others made, in one round trip
+each. The CRDT merges them like any concurrent edits, because that is all they are; the
+week only makes the batch bigger. The Phase 5 exit test does this with a server restart
+in the middle (`packages/sync-client/src/phase5-exit.test.ts`), and the Phase 6 exit test
+does it in two browsers (`apps/e2e`).
+
+**Why presence is outside the CRDT (ADR-0012).** Where someone's cursor is matters only
+while they are connected. As CRDT ops it would be saved forever and replayed to every new
+device, for information that is stale within seconds. So cursors travel as their own
+`presence` message, which the server relays and keeps only in memory, and positions are
+sent as anchors ("just after character X") so they stay right while others type.
 
 ---
 

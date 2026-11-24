@@ -70,8 +70,8 @@ the same code, which is what makes replicas agree.
 **Tombstone.** A deleted character that stays in the array, marked `deleted`, instead
 of being removed. It is hidden from the visible text but keeps its place. Without it, an
 insert typed concurrently right after that character would arrive with an origin that no
-longer exists and have nowhere to go. The cost is that tombstones accumulate; ADR-0003
-will decide whether and when to collect them.
+longer exists and have nowhere to go. The cost is that tombstones accumulate; they are never
+collected (ADR-0015).
 
 ## Convergence harness (Phase 2)
 
@@ -220,3 +220,20 @@ an ordinary app.
 **Offline-first (cache first).** Answering from the saved copy before trying the network,
 so the app opens instantly either way. The cost is that a new version shows one reload
 after it was downloaded.
+
+## Writeup (Phase 7)
+
+**OT (Operational Transformation).** The pre-CRDT way to merge concurrent text edits, used
+by Google Docs: edits are sent as indices, and each incoming edit is rewritten against the
+edits its author hadn't seen. It needs a central server putting edits in one order to be
+tractable, which a local-first app can't rely on (`crdt-design.md` section 1).
+
+**Strong eventual consistency.** Any two replicas that have received the same set of ops
+are in the same state, with no further messages, voting or coordination. It is the
+guarantee a CRDT gives, and what P3 checks.
+
+**Causal stability.** An op is causally stable once every replica has received it, so no
+op made without knowing about it can still arrive. It is the condition under which a
+tombstone could safely be collected, and it needs a known, complete list of replicas:
+one device that never reconnects keeps everything unstable forever (ADR-0015).
+
