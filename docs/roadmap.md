@@ -119,6 +119,9 @@ README.
 
 **Exit:** the GIF exists and is under 5MB. The writeup has no `TODO` markers.
 
+*Met 2026-11-24:* `docs/demo.gif` is 60 KB (`pnpm demo` records it again), and
+`docs/crdt-design.md` has no `TODO` left.
+
 ---
 
 ## Parked

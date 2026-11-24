@@ -16,6 +16,10 @@ Terms are defined in `glossary.md`.
    `x` came from someone else?
 3. Automerge merges the backward case to `xaybzc`. Which ordering rule from section 3
    produces exactly that string?
+4. Tombstones are never collected. Describe the exact sequence of events in which
+   collecting a tombstone too early makes two replicas diverge.
+5. A device comes back after a week offline. What does its `hello` message contain, and
+   why is it no bigger than after a minute offline?
 
 ## Phase 6: the editor
 
