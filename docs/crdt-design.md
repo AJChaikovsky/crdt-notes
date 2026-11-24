@@ -138,9 +138,10 @@ forward non-interleaving and falls slightly short on some backward cases (correc
 2026-09-28 against the paper's Theorem 9; see ADR-0004). The paper also identifies cases where YATA
 still interleaves.
 
-> **Verify this yourself.** That last claim about YATA is exactly the sort of thing a
-> writeup gets wrong by repeating. Construct the case, run it through Yjs, and report
-> what you actually observed. If you can't reproduce it, say so.
+> **Verified 2026-11-24.** The paper's example (its Appendix A.1.9, three replicas, a
+> backward insert after a one-way sync) still interleaves on Yjs 13.6.33: it merges to
+> `axb`. Section 7 has the steps. Strictly, the paper makes the claim about Yjs, not about
+> YATA as published; Yjs is YATA plus later changes.
 
 ### What this means for the property test
 
@@ -321,10 +322,84 @@ sent as anchors ("just after character X") so they stay right while others type.
 
 ## 7. Compared to Yjs and Automerge
 
-TODO. Measure, don't paraphrase. Run the same editing trace through your implementation,
-Yjs, and Automerge, and report document size, memory, ops/sec, and merge behaviour on
-the interleaving cases. Be honest about where you lose — you will, and a writeup that
-admits it is far more credible than one that doesn't.
+Measured, not paraphrased: `pnpm compare` runs the code in `packages/compare`, which is
+dev only and never imported by the app or the core.
+
+### Speed, size and memory on a real trace
+
+The automerge-paper trace (259,778 edits, ending at 104,852 characters), replayed through
+each implementation in one run on one machine (2026-11-24, Node 22.23, a 4-core cloud
+container, Yjs 13.6.33, Automerge 3.5.0):
+
+| | FastFugue (ours) | Yjs | Automerge |
+|---|---|---|---|
+| Local replay (typing the whole trace) | 338 ms | 2,461 ms | 23,613 ms |
+| Remote, one change at a time | 249 ms | 1,629 ms | 55,749 ms for the first 20,000 only |
+| Remote, all at once | 249 ms | 881 ms | 3,663 ms |
+| Saved size | 22.36 MB | 0.31 MB | 0.13 MB |
+| Load from saved | 606 ms | 27 ms | 864 ms |
+| Memory kept by one document | 70.5 MB | 3.4 MB | 97.3 MB |
+
+How it was measured, because each choice moves the numbers:
+
+- **Each library through its normal API.** Yjs and Automerge take a whole edit (delete a
+  range, insert a string) as one change. FastFugue only has per-character `insertAt` and
+  `deleteAt`, so it makes one op per character. Yjs's local time also includes encoding
+  each change as an update for the network, which ours leaves to `sync-protocol`; ours is
+  timed without that.
+- **Remote, one change at a time** applies each change separately, the way changes arrive
+  over a network while people type. Automerge slows as the document grows (about 3 ms a
+  change by 20,000), so the full trace would take hours; it is timed on the first 20,000.
+- **Remote, all at once** is the same changes applied as one batch: inside one
+  transaction for Yjs, one `applyChanges` call for Automerge. FastFugue has no batch path,
+  so it is the same loop.
+- **Saved size** is FastFugue's snapshot (ADR-0007), `Y.encodeStateAsUpdate`, and
+  `Automerge.save`.
+- **Memory** is what one fully built document keeps alive: for the JS heap, what is freed
+  when it is dropped; for Automerge, also how much its WebAssembly memory grew.
+
+What it says, honestly:
+
+- **We are faster at editing.** The B-tree (ADR-0006) makes every keystroke cheap, and a
+  per-character op needs no splitting of runs. This is the one column we win clearly.
+- **We lose badly on size and memory: 70 to 170 times bigger on disk, and 20 times Yjs's
+  memory.** Both libraries store runs: a stretch typed in one go is one entry. Yjs ends
+  this trace with 10,971 structs where we have 182,315 nodes. Our snapshot is also JSON
+  (ADR-0007), while both libraries use compact binary encodings, and Automerge compresses
+  its columns. Runs in FastFugue are parked (`roadmap.md#parked`); this table is the
+  argument for un-parking them.
+- **Loading is slower than Yjs** for the same reason: 182k nodes to rebuild instead of
+  11k.
+- **Automerge's memory is close to ours** despite storing runs. It keeps the full history
+  of every change, so any past version can be rebuilt, which neither Yjs nor we do.
+
+### Merge behaviour on the interleaving cases
+
+The cases from section 3, run through all three (`packages/compare/test/interleaving.test.ts`,
+which pins the answers below):
+
+| Case | FastFugue | Yjs | Automerge |
+|---|---|---|---|
+| Forward: `Hello` and `World` typed at the same place | `HelloWorld` | `HelloWorld` | `WorldHello` |
+| Backward: `abc` and `xyz`, each typed at index 0 | `abcxyz` | `abcxyz` | `xaybzc` |
+| Multi-replica backward (below) | `xab` | `axb` | `abx` |
+
+- Everyone handles forward typing. Which person's word comes first is a tie-break and
+  doesn't matter.
+- **Automerge interleaves backward runs**, exactly as section 3 predicts for RGA: its
+  list ordering is RGA's (Replicated Growable Array's).
+- **Yjs interleaves in the multi-replica backward case,** reproduced from *The Art of the
+  Fugue*, Appendix A.1.9, which reported it on Yjs 13.6.8. Replica 3 types `b`. Replica 1
+  receives it and types `a` before it. Replica 2, having seen nothing, types `x` at the
+  start. Yjs 13.6.33 still merges this to `axb`, splitting the `ab` replica 1 typed.
+  FastFugue keeps `a` next to its `b`. This settles the "verify this yourself" note in
+  section 3: the claim holds, in this narrow case. The paper's Table 1 is careful about it:
+  Yjs is proven forward non-interleaving, no single-replica backward example is known, and
+  this multi-replica case is the one it found.
+- A random search (fast-check, 20,000 cases of runs typed between full syncs) found no case
+  where Yjs interleaved and FastFugue didn't, or the other way round. The multi-replica
+  case needs a one-way sync between two of three replicas, which that search didn't
+  generate.
 
 ---
 

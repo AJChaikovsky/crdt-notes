@@ -7,6 +7,16 @@ instead of being asked in chat. When you answer one, move it with your answer in
 
 Terms are defined in `glossary.md`.
 
+## Phase 7: compared to Yjs and Automerge
+
+1. FastFugue replays the trace 7 times faster than Yjs but saves a file 70 times bigger.
+   Name the one structural difference that explains most of both numbers.
+2. In the multi-replica case, Yjs gives `axb` and FastFugue gives `xab`. Which characters
+   did replica 1 intend to be next to each other, and why is `xab` acceptable even though
+   `x` came from someone else?
+3. Automerge merges the backward case to `xaybzc`. Which ordering rule from section 3
+   produces exactly that string?
+
 ## Phase 6: the editor
 
 1. A CodeMirror transaction replaces positions 2–4 with "x" and inserts "y" at 7, both

@@ -1,0 +1,19 @@
+{
+  "name": "@crdt-notes/compare",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Runs the same editing traces and interleaving cases through Yjs and Automerge, to compare against our Fugue. Dev only; never imported by the app or the core.",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@crdt-notes/crdt": "workspace:*",
+    "@crdt-notes/crdt-testkit": "workspace:*"
+  },
+  "devDependencies": {
+    "@automerge/automerge": "3.5.0",
+    "fast-check": "^4.10.2",
+    "yjs": "13.6.33"
+  }
+}
